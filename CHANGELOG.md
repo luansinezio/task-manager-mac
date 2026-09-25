@@ -3,6 +3,18 @@
 Versões seguem `MAIOR.MENOR.CORREÇÃO`. Enquanto estiver em 0.x, MENOR sobe a cada recurso novo e CORREÇÃO a cada ajuste.
 A primeira seção é a versão atual: é dela que o app lê o número e a lista de novidades.
 
+## 0.6.0 — 2026-09-25
+
+- Barra de menu com um contador por tipo: rodando, aprovar, responder e destravar; sem nada acontecendo, volta ao número de abertas
+- Bloco "Precisa de você" no topo do painel, com placas por tipo
+- Aprovar: mostra o resultado pronto, com Aprovar, Copiar, Devolver à IA com comentário e Ver tudo
+- Responder: mostra a pergunta e a etapa, com campo pra responder ali mesmo; a resposta volta pra IA
+- Destravar: mostra o que falta, com "Resolvi, devolver à IA" e "Fica comigo"
+- Aviso do macOS com um modelo por tipo; o de Responder aceita a resposta direto na notificação
+- Nova ferramenta perguntar no MCP: a IA para, espera a sua resposta e continua sozinha
+- Ícone do Dock mostra quantas coisas esperam você
+- Liga e desliga os avisos nos ajustes
+
 ## 0.5.0 — 2026-09-25
 
 - A lista vira a barra de status de toda sessão de IA, não só das tarefas passadas pra ela

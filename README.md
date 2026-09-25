@@ -98,6 +98,17 @@ Como funciona:
 
 Na tela, a faísca ao lado de cada tarefa passa ela pra IA ou pega de volta.
 
+### Precisa de você
+
+Quando alguma IA precisa de você, isso aparece em três lugares:
+
+- **Barra de menu:** um ícone e um número por tipo: ✦ rodando, ✓ aprovar, 💬 responder, ⚠ destravar. Sem nada acontecendo, volta ao número de abertas.
+- **Topo do painel:** o bloco "Precisa de você", com uma placa por pendência.
+  - **Aprovar:** o resultado pronto (texto ou arquivo), com Aprovar, Copiar e Devolver à IA com comentário.
+  - **Responder:** a pergunta da IA e a etapa em que ela parou, com um campo pra responder. A resposta volta direto pra IA, que continua sozinha.
+  - **Destravar:** o que falta, com "Resolvi, devolver à IA" e "Fica comigo".
+- **Aviso do macOS:** um modelo por tipo. No de Responder dá pra responder direto na notificação. Liga e desliga nos ajustes.
+
 ### Barra de status de toda sessão
 
 A lista não é só pro que você passa pra IA: ela mostra tudo que as IAs estão fazendo, no nível macro.
@@ -116,7 +127,7 @@ command: python3
 args: /caminho/task-manager-mac/mcp.py
 ```
 
-Ferramentas: `comecar_trabalho`, `listar_tarefas`, `adicionar_tarefa`, `definir_dono`, `pegar_tarefa`, `informar_progresso`, `concluir_tarefa`, `devolver_tarefa`, `marcar_feita`. As regras de triagem vão junto, nas instruções do servidor. O logo sai do nome que a IA informa ao conectar.
+Ferramentas: `comecar_trabalho`, `perguntar`, `aguardar_resposta`, `listar_tarefas`, `adicionar_tarefa`, `definir_dono`, `pegar_tarefa`, `informar_progresso`, `concluir_tarefa`, `devolver_tarefa`, `marcar_feita`. As regras de triagem vão junto, nas instruções do servidor. O logo sai do nome que a IA informa ao conectar.
 
 Sem MCP, o mesmo pelo terminal:
 

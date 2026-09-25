@@ -28,6 +28,11 @@ Barra de status (sempre):
   o id certo ou peça pra criar.
 - Subtarefa não vira item. Ela vira etapa: informar_progresso com etapa "3/7" e uma nota curta do passo
   (até 60 caracteres), a cada passo real, nunca a cada comando.
+- Precisa de algo da pessoa no meio (código, senha, escolha, confirmação)? Use perguntar: a tarefa vira
+  "Responder" na barra de menu, a pessoa recebe um aviso e responde ali; a resposta volta pra você.
+  Enquanto espera, não faça nada destrutivo. Se o tempo acabar, chame aguardar_resposta de novo.
+- Tarefa que "voltou pra IA" com comentário (listar_tarefas mostra) é a pessoa pedindo pra refazer ou
+  dizendo que destravou: leia o comentário e retome.
 - No fim, concluir_tarefa com um resumo de uma linha e, quando houver, o resultado (texto pronto ou
   caminho do arquivo). Se parar no meio, devolver_tarefa dizendo o que falta. Não deixe tarefa em "fazendo"
   quando a sessão termina.
@@ -69,6 +74,10 @@ def texto_lista(filtro="todas"):
                     extra = f" | {ia.get('agente', 'ia')} {ia['estado']} {ia.get('progresso', 0)}%"
                     if ia.get("nota"):
                         extra += f" · {ia['nota']}"
+                    if ia.get("estado") == "aguardando":
+                        extra += f" · pergunta: {ia.get('pergunta', '')}"
+                    if ia.get("comentario"):
+                        extra += f" · voltou pra IA: \"{ia['comentario']}\""
                 itens.append(f"  {it['id']} [{marca} · dono: {dono}] {it['texto']}{extra}")
             if itens:
                 linhas.append(f"{sec['titulo']} (secao: {sid})")
@@ -115,6 +124,14 @@ FERRAMENTAS = [
     {"name": "devolver_tarefa", "description": "Passa a tarefa pra pessoa, dizendo o que falta pra seguir.",
      "inputSchema": {"type": "object", "required": ["id", "falta"], "properties": _id({
          "falta": {"type": "string"}})}},
+    {"name": "perguntar", "description": "Para a tarefa e pergunta algo à pessoa (aparece como Responder na barra de menu, com aviso). Espera a resposta e devolve ela.",
+     "inputSchema": {"type": "object", "required": ["id", "pergunta"], "properties": _id({
+         "pergunta": {"type": "string", "description": "Curta e direta, ex.: Qual o código SMS que chegou no celular do pastor?"},
+         "etapa": {"type": "string", "description": "Etapa em que parou, ex.: 2/4"},
+         "esperar_segundos": {"type": "integer", "default": 300, "description": "Quanto esperar agora (máx. 900)"}})}},
+    {"name": "aguardar_resposta", "description": "Continua esperando a resposta de uma pergunta já feita.",
+     "inputSchema": {"type": "object", "required": ["id"], "properties": _id({
+         "esperar_segundos": {"type": "integer", "default": 300}})}},
     {"name": "marcar_feita", "description": "Marca ou desmarca uma tarefa como feita (só quando a pessoa disser que fez).",
      "inputSchema": {"type": "object", "required": ["id"], "properties": _id({
          "feita": {"type": "boolean", "default": True}})}},
@@ -155,7 +172,27 @@ def comecar(a):
     return (f"{'Criei' if criada else 'Peguei'} {alvo}. Informe o progresso por etapa e conclua no fim."), alvo
 
 
+def esperar(id_, segundos):
+    import time
+    fim = time.time() + max(5, min(int(segundos or 300), 900))
+    while time.time() < fim:
+        dados, _ = tm.ler()
+        _, _, item = tm._achar(dados, id_)
+        ia = item.get("ia") or {}
+        if ia.get("estado") != "aguardando":
+            if ia.get("resposta"):
+                return f"Resposta da pessoa: {ia['resposta']}"
+            return f"A tarefa saiu da espera (estado: {ia.get('estado', 'sem IA')}). Confira com listar_tarefas."
+        time.sleep(2)
+    return "Ainda sem resposta. Chame aguardar_resposta de novo pra seguir esperando, ou devolva a tarefa."
+
+
 def chamar(nome, a):
+    if nome == "perguntar":
+        tm.aplicar({"op": "ia_perguntar", "id": a["id"], "pergunta": a["pergunta"], "etapa": a.get("etapa", ""), "agente": AGENTE})
+        return esperar(a["id"], a.get("esperar_segundos", 300))
+    if nome == "aguardar_resposta":
+        return esperar(a["id"], a.get("esperar_segundos", 300))
     if nome == "comecar_trabalho":
         return comecar(a)[0]
     if nome == "listar_tarefas":
@@ -219,7 +256,7 @@ def main():
             responder(id_, {
                 "protocolVersion": p.get("protocolVersion") or VERSAO_PROTOCOLO,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "tarefas", "version": "0.5.0"},
+                "serverInfo": {"name": "tarefas", "version": "0.6.0"},
                 "instructions": INSTRUCOES,
             })
         elif metodo == "tools/list":

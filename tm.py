@@ -17,6 +17,9 @@ Copiloto de IA (o mesmo que o MCP em mcp.py faz):
   python3 tm.py concluir t04 "o que foi feito" [revisar]
   python3 tm.py devolver t04 "o que falta pra IA seguir"
   python3 tm.py comecar claude "Título do trabalho macro" [secao]   (acha a tarefa parecida ou cria)
+  python3 tm.py perguntar t04 "Qual o código SMS?" [etapa]          (a IA para e espera você)
+  python3 tm.py responder t04 "482913"
+  python3 tm.py voltar t04 ["comentário"]    (devolve à IA: refazer ou seguir depois de destravar)
   python3 tm.py resumo           (o que entra no início de cada sessão de IA)
 """
 import fcntl
@@ -195,6 +198,36 @@ def aplicar(op):
             ia = item.setdefault("ia", {"agente": op.get("agente") or "ia"})
             item["dono"] = "voce"
             ia.update(estado="devolvida", nota=(op.get("falta") or "").strip(), fim=agora, atualizado=agora)
+        elif tipo == "ia_perguntar":
+            _, _, item = _achar(dados, op["id"])
+            ia = item.setdefault("ia", {"agente": op.get("agente") or "ia", "progresso": 0})
+            item["dono"] = "ia"
+            ia.update(estado="aguardando", pergunta=op["pergunta"].strip(), atualizado=agora)
+            ia.pop("resposta", None)
+            if op.get("agente"):
+                ia["agente"] = op["agente"]
+            if op.get("etapa"):
+                ia["etapa"] = str(op["etapa"]).strip()
+        elif tipo == "responder":
+            _, _, item = _achar(dados, op["id"])
+            ia = item.get("ia") or {}
+            if ia.get("estado") != "aguardando":
+                raise ValueError("essa tarefa não está esperando resposta")
+            texto = op["resposta"].strip()
+            if not texto:
+                raise ValueError("resposta vazia")
+            ia.update(estado="fazendo", resposta=texto, respondido=agora, atualizado=agora,
+                      nota=f"respondido: {ia.get('pergunta', '')}"[:80])
+        elif tipo == "voltar_ia":
+            # Aprovar → "devolver à IA" pra refazer; Destravar → "resolvi, pode seguir"
+            _, _, item = _achar(dados, op["id"])
+            ia = item.setdefault("ia", {"agente": "ia"})
+            item["dono"] = "ia"
+            item["feito"] = False
+            ia.update(estado="fila", progresso=0, atualizado=agora, nota="",
+                      comentario=(op.get("comentario") or "").strip())
+            for k in ("resultado", "pergunta", "etapa", "fim"):
+                ia.pop(k, None)
         elif tipo == "limpar":
             for sec in dados["secoes"].values():
                 sec["itens"] = [it for it in sec["itens"] if not it["feito"]]
@@ -228,6 +261,8 @@ def resumo(agora=None):
                 (parados if parado > 30 * 60 else rodando).append(linha + (f", sem notícia há {int(parado // 60)} min" if parado > 30 * 60 else ""))
             elif est in ("revisar", "devolvida", "aguardando"):
                 esperando.append(f"{it['id']} {it['texto']} ({est})")
+            elif est == "fila" and ia.get("comentario"):
+                rodando.append(f"{it['id']} {it['texto']} (voltou pra IA: \"{ia['comentario']}\")")
     partes = [f"Task Manager (MCP tarefas): {abertas} tarefas abertas."]
     if rodando:
         partes.append("IA fazendo agora: " + "; ".join(rodando) + ".")
@@ -294,6 +329,9 @@ if __name__ == "__main__":
                               "etapa": a[4] if len(a) > 4 else ""},
         "concluir": lambda: {"op": "ia_concluir", "id": a[1], "resumo": a[2], "revisar": len(a) > 3 and a[3] == "revisar"},
         "devolver": lambda: {"op": "ia_devolver", "id": a[1], "falta": a[2]},
+        "perguntar": lambda: {"op": "ia_perguntar", "id": a[1], "pergunta": a[2], "etapa": a[3] if len(a) > 3 else ""},
+        "responder": lambda: {"op": "responder", "id": a[1], "resposta": a[2]},
+        "voltar": lambda: {"op": "voltar_ia", "id": a[1], "comentario": a[2] if len(a) > 2 else ""},
     }
     if cmd not in ops:
         sys.exit(__doc__)

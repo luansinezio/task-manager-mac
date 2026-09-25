@@ -6,6 +6,7 @@
 // Build e instalação: ./instalar.sh
 import Cocoa
 import ServiceManagement
+import UserNotifications
 import WebKit
 
 let BASE = "http://localhost:8790"
@@ -24,7 +25,7 @@ final class Painel: NSPanel {
     override func cancelOperation(_ sender: Any?) { orderOut(nil) }
 }
 
-final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindowDelegate, WKScriptMessageHandler {
+final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindowDelegate, WKScriptMessageHandler, UNUserNotificationCenterDelegate {
     var item: NSStatusItem!
     var painel: Painel!
     var webCentro: WKWebView!
@@ -40,6 +41,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
     // ---- ajustes guardados ----
     var modo: String { prefs.string(forKey: "modo") ?? "menu" }         // menu · dock · ambos
     var cantoLigado: Bool { prefs.object(forKey: "canto") as? Bool ?? true }
+    var avisosLigados: Bool { prefs.object(forKey: "avisos") as? Bool ?? true }
 
     func applicationDidFinishLaunching(_ n: Notification) {
         // uma instância só
@@ -78,7 +80,8 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
 
         Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in self?.vigiarCanto() }
         contar()
-        Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in self?.contar() }
+        Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.contar() }
+        prepararAvisos()
     }
 
     func carregar() {
@@ -251,6 +254,9 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
                     if v != "menu" { mostrarJanela() }
                 }
             case "canto": prefs.set(valor as? Bool ?? true, forKey: "canto")
+            case "avisos":
+                prefs.set(valor as? Bool ?? true, forKey: "avisos")
+                if valor as? Bool == true { prepararAvisos() }
             case "login":
                 if valor as? Bool == true { try? SMAppService.mainApp.register() }
                 else { try? SMAppService.mainApp.unregister() }
@@ -267,7 +273,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
     func enviarAjustes() {
         let (disponivel, ligado) = estadoWidget()
         let estado: [String: Any] = [
-            "modo": modo, "canto": cantoLigado,
+            "modo": modo, "canto": cantoLigado, "avisos": avisosLigados,
             "login": SMAppService.mainApp.status == .enabled,
             "widget": ligado, "widgetDisponivel": disponivel,
         ]
@@ -355,22 +361,190 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
     @objc func abrir() { NSWorkspace.shared.open(URL(string: BASE)!) }
     @objc func recarregar() { carregar(); contar() }
 
+    // ---- barra de menu: rodando, aprovar, responder, destravar ----
+    // Tudo zerado: ícone de lista e o número de abertas. Com algo acontecendo: um ícone e um número por tipo.
+    var estadosVistos: [String: String]? = nil
+
     func contar() {
         URLSession.shared.dataTask(with: URL(string: BASE + "/api/tarefas")!) { d, _, _ in
-            var titulo = ""
-            var n = 0
-            if let d, let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
-               let dados = j["dados"] as? [String: Any], let secoes = dados["secoes"] as? [String: [String: Any]] {
-                for s in secoes.values where (s["tipo"] as? String) == "check" {
-                    for it in (s["itens"] as? [[String: Any]]) ?? [] where (it["feito"] as? Bool) != true { n += 1 }
+            guard let d, let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+                  let dados = j["dados"] as? [String: Any], let secoes = dados["secoes"] as? [String: [String: Any]] else {
+                DispatchQueue.main.async { self.pintarBarra(abertas: nil, tipos: [:]) }
+                return
+            }
+            var abertas = 0
+            var tipos: [String: Int] = [:]
+            var pendentes: [[String: Any]] = []
+            let agora = Date()
+            let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            for s in secoes.values where (s["tipo"] as? String) == "check" {
+                for it in (s["itens"] as? [[String: Any]]) ?? [] where (it["feito"] as? Bool) != true {
+                    abertas += 1
+                    guard let ia = it["ia"] as? [String: Any], let est = ia["estado"] as? String else { continue }
+                    switch est {
+                    case "fazendo":
+                        let quando = fmt.date(from: (ia["atualizado"] as? String) ?? (ia["inicio"] as? String) ?? "")
+                        if let q = quando, agora.timeIntervalSince(q) > 30 * 60 { continue }   // parada não conta como rodando
+                        tipos["rodando", default: 0] += 1
+                    case "revisar": tipos["aprovar", default: 0] += 1; pendentes.append(it)
+                    case "aguardando": tipos["responder", default: 0] += 1; pendentes.append(it)
+                    case "devolvida": tipos["destravar", default: 0] += 1; pendentes.append(it)
+                    default: break
+                    }
                 }
-                titulo = " \(n)"
             }
             DispatchQueue.main.async {
-                self.item.button?.title = titulo
-                NSApp.dockTile.badgeLabel = n > 0 ? "\(n)" : nil
+                self.pintarBarra(abertas: abertas, tipos: tipos)
+                self.avisarNovidades(pendentes)
             }
         }.resume()
+    }
+
+    static let simbolos: [(String, String)] = [("rodando", "sparkle"), ("aprovar", "checkmark.seal"),
+                                                ("responder", "questionmark.bubble"), ("destravar", "exclamationmark.triangle")]
+
+    func pintarBarra(abertas: Int?, tipos: [String: Int]) {
+        guard let b = item.button else { return }
+        let pendencias = (tipos["aprovar"] ?? 0) + (tipos["responder"] ?? 0) + (tipos["destravar"] ?? 0)
+        NSApp.dockTile.badgeLabel = pendencias > 0 ? "\(pendencias)" : nil
+        let partes = App.simbolos.compactMap { (chave, sim) -> (String, Int)? in
+            let n = tipos[chave] ?? 0
+            return n > 0 ? (sim, n) : nil
+        }
+        if partes.isEmpty {
+            b.image = NSImage(systemSymbolName: "checklist", accessibilityDescription: "Tarefas")
+            b.title = abertas.map { " \($0)" } ?? ""
+            b.toolTip = abertas.map { "\($0) tarefas abertas" }
+            return
+        }
+        b.title = ""
+        b.image = imagemBarra(partes)
+        let nomes = ["rodando": "rodando", "aprovar": "pra aprovar", "responder": "pra responder", "destravar": "pra destravar"]
+        b.toolTip = App.simbolos.compactMap { (k, _) in (tipos[k] ?? 0) > 0 ? "\(tipos[k]!) \(nomes[k]!)" : nil }.joined(separator: " · ")
+    }
+
+    // Desenha os ícones e números numa imagem-modelo: o macOS pinta na cor certa da barra (claro ou escuro).
+    func imagemBarra(_ partes: [(String, Int)]) -> NSImage {
+        let fonte = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)
+        let cfg = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
+        let attrs: [NSAttributedString.Key: Any] = [.font: fonte, .foregroundColor: NSColor.black]
+        let altura: CGFloat = 18, gapIcone: CGFloat = 3, gapParte: CGFloat = 9
+        var pecas: [(NSImage, NSAttributedString)] = []
+        var largura: CGFloat = 0
+        for (sim, n) in partes {
+            let img = NSImage(systemSymbolName: sim, accessibilityDescription: nil)?.withSymbolConfiguration(cfg) ?? NSImage()
+            let txt = NSAttributedString(string: "\(n)", attributes: attrs)
+            pecas.append((img, txt))
+            largura += img.size.width + gapIcone + txt.size().width
+        }
+        largura += gapParte * CGFloat(max(0, pecas.count - 1))
+        let imagem = NSImage(size: NSSize(width: ceil(largura), height: altura), flipped: false) { _ in
+            var x: CGFloat = 0
+            for (img, txt) in pecas {
+                let t = img.size
+                img.draw(in: NSRect(x: x, y: (altura - t.height) / 2, width: t.width, height: t.height))
+                x += t.width + gapIcone
+                let ts = txt.size()
+                txt.draw(at: NSPoint(x: x, y: (altura - ts.height) / 2))
+                x += ts.width + gapParte
+            }
+            return true
+        }
+        imagem.isTemplate = true
+        return imagem
+    }
+
+    // ---- avisos do macOS: um modelo por tipo ----
+    func prepararAvisos() {
+        let c = UNUserNotificationCenter.current()
+        c.delegate = self
+        let aprovar = UNNotificationCategory(identifier: "aprovar", actions: [
+            UNNotificationAction(identifier: "aprovar", title: "Aprovar", options: []),
+            UNNotificationAction(identifier: "ver", title: "Ver", options: [.foreground]),
+        ], intentIdentifiers: [])
+        let responder = UNNotificationCategory(identifier: "responder", actions: [
+            UNTextInputNotificationAction(identifier: "responder", title: "Responder", options: [],
+                                          textInputButtonTitle: "Enviar", textInputPlaceholder: "Sua resposta"),
+        ], intentIdentifiers: [])
+        let destravar = UNNotificationCategory(identifier: "destravar", actions: [
+            UNNotificationAction(identifier: "ver", title: "Ver", options: [.foreground]),
+        ], intentIdentifiers: [])
+        c.setNotificationCategories([aprovar, responder, destravar])
+        c.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+    }
+
+    func avisarNovidades(_ pendentes: [[String: Any]]) {
+        var atuais: [String: String] = [:]
+        for it in pendentes {
+            if let id = it["id"] as? String, let est = (it["ia"] as? [String: Any])?["estado"] as? String { atuais[id] = est }
+        }
+        defer { estadosVistos = atuais }
+        guard let vistos = estadosVistos, avisosLigados else { return }   // primeira leitura só registra
+        for it in pendentes {
+            guard let id = it["id"] as? String, let ia = it["ia"] as? [String: Any],
+                  let est = ia["estado"] as? String, vistos[id] != est else { continue }
+            let texto = (it["texto"] as? String) ?? ""
+            let quem = nomeAgente(ia["agente"] as? String)
+            let conteudo = UNMutableNotificationContent()
+            conteudo.userInfo = ["id": id]
+            conteudo.sound = .default
+            switch est {
+            case "revisar":
+                conteudo.categoryIdentifier = "aprovar"
+                conteudo.title = "Pra aprovar · \(quem)"
+                conteudo.body = "\(texto): \((ia["nota"] as? String) ?? "pronto pra revisar")"
+            case "aguardando":
+                conteudo.categoryIdentifier = "responder"
+                conteudo.title = "\(quem) precisa de você"
+                let etapa = (ia["etapa"] as? String).map { " (etapa \($0))" } ?? ""
+                conteudo.body = "\(texto)\(etapa): \((ia["pergunta"] as? String) ?? "")"
+            default:
+                conteudo.categoryIdentifier = "destravar"
+                conteudo.title = "\(quem) devolveu"
+                conteudo.body = "\(texto): falta \((ia["nota"] as? String) ?? "algo seu")"
+            }
+            UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "\(id)-\(est)", content: conteudo, trigger: nil))
+        }
+    }
+
+    func nomeAgente(_ a: String?) -> String {
+        switch a ?? "" {
+        case "claude": return "Claude"
+        case "codex": return "Codex"
+        case "chatgpt": return "ChatGPT"
+        case "gemini": return "Gemini"
+        case "", "ia": return "IA"
+        default: return a!.prefix(1).uppercased() + a!.dropFirst()
+        }
+    }
+
+    // aviso aparece mesmo com o app na frente
+    func userNotificationCenter(_ c: UNUserNotificationCenter, willPresent n: UNNotification,
+                                withCompletionHandler fim: @escaping (UNNotificationPresentationOptions) -> Void) {
+        fim([.banner, .sound])
+    }
+
+    func userNotificationCenter(_ c: UNUserNotificationCenter, didReceive r: UNNotificationResponse,
+                                withCompletionHandler fim: @escaping () -> Void) {
+        let id = r.notification.request.content.userInfo["id"] as? String ?? ""
+        switch r.actionIdentifier {
+        case "aprovar": enviarOp(["op": "toggle", "id": id])
+        case "responder":
+            if let t = (r as? UNTextInputNotificationResponse)?.userText, !t.isEmpty {
+                enviarOp(["op": "responder", "id": id, "resposta": t])
+            }
+        default:
+            DispatchQueue.main.async { self.modo == "menu" ? self.abrirCentro(naTelaDoMouse: false) : self.mostrarJanela() }
+        }
+        fim()
+    }
+
+    func enviarOp(_ corpo: [String: Any]) {
+        var req = URLRequest(url: URL(string: BASE + "/api/op")!)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: corpo)
+        URLSession.shared.dataTask(with: req) { _, _, _ in DispatchQueue.main.async { self.contar() } }.resume()
     }
 }
 
