@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230E0E0E'/%3E%3Cpath d='M9 16.5l4.5 4.5L23 11.5' fill='none' stroke='%23E8E8E8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script>
+  const q = new URLSearchParams(location.search);
+  if (!q.has('widget')) try { const t = localStorage.getItem('tm-tema'); if (t) document.documentElement.dataset.tema = t; } catch (e) {}
+  if (q.has('moldura')) document.documentElement.classList.add('moldura');
+  if (q.has('widget')) {
+    document.documentElement.classList.add('widget');
+    if (q.has('largo')) document.documentElement.classList.add('largo');
+    if (q.get('tema')) document.documentElement.dataset.tema = q.get('tema');
+  }
+</script>
+<style>
+:root{
+  --bg:#0E0E0E; --bg-soft:#1A1A1A; --bg-card:#242424;
+  --text:#E8E8E8; --text-muted:#A8A8A8; --text-dim:#8C8C8C;
+  --border:#333333; --border-strong:#757575; --accent:#F5F5F5;
+  --grao-op:.08; --grao-blend:normal; --grao-filtro:none;
+  color-scheme:dark;
+}
+/* tema: sem data-tema segue o sistema; data-tema="claro" ou "escuro" força */
+@media (prefers-color-scheme:light){
+  :root:not([data-tema="escuro"]){
+    --bg:#EAEAEA; --bg-soft:#E0E0E0; --bg-card:#F5F5F5;
+    --text:#1C1C1C; --text-muted:#4F4F4F; --text-dim:#616161;
+    --border:#D4D4D4; --border-strong:#7A7A7A; --accent:#242424;
+    --grao-op:.10; --grao-blend:multiply; --grao-filtro:invert(1);
+    color-scheme:light;
+  }
+}
+:root[data-tema="claro"]{
+  --bg:#EAEAEA; --bg-soft:#E0E0E0; --bg-card:#F5F5F5;
+  --text:#1C1C1C; --text-muted:#4F4F4F; --text-dim:#616161;
+  --border:#D4D4D4; --border-strong:#7A7A7A; --accent:#242424;
+  --grao-op:.10; --grao-blend:multiply; --grao-filtro:invert(1);
+  color-scheme:light;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text)}
+body{
+  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:15px;line-height:1.5;
+  min-height:100vh;-webkit-font-smoothing:antialiased;
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  opacity:var(--grao-op);mix-blend-mode:var(--grao-blend);filter:var(--grao-filtro);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='8' intercept='-4.8'/%3E%3CfeFuncG type='linear' slope='8' intercept='-4.8'/%3E%3CfeFuncB type='linear' slope='8' intercept='-4.8'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.mono{font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.18em;font-size:11px}
+
+/* ---- topo ---- */
+.pagina{max-width:1180px;margin:0 auto;padding:48px 32px 96px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:32px}
+.eyebrow{display:flex;align-items:center;gap:10px;color:var(--text-dim);margin-bottom:14px}
+.eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--text-muted);display:block}
+h1{font-weight:500;font-size:clamp(34px,5vw,52px);letter-spacing:-.02em;line-height:1.05}
+h1 span{color:var(--text-dim)}
+.painel{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.contagem{color:var(--text-muted);margin-right:12px}
+.contagem b{color:var(--accent);font-weight:500}
+.btn{
+  font:inherit;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.16em;font-size:11px;
+  background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:6px;
+  padding:0 14px;height:36px;cursor:pointer;transition:border-color .15s,color .15s,background .15s;
+}
+.btn:hover{border-color:var(--border-strong);color:var(--text)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn:disabled:hover{border-color:var(--border);color:var(--text-muted)}
+.estado{color:var(--text-dim);min-width:70px;text-align:right}
+.estado.erro{color:var(--accent)}
+
+/* ---- grade ---- */
+.grade{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.coluna{display:flex;flex-direction:column;gap:20px}
+.secao{background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;padding:18px 10px 10px}
+.secao-topo{display:flex;align-items:baseline;justify-content:space-between;padding:0 10px 10px;gap:12px}
+.secao-topo h2{font-weight:500;color:var(--text);font-size:11px}
+.secao-topo small{color:var(--text-dim);margin-left:10px;letter-spacing:.14em}
+.secao-topo .n{color:var(--text-dim)}
+.lista{list-style:none;min-height:8px;border-radius:6px;transition:background .15s}
+.lista.alvo{background:var(--bg-card)}
+body.arrastando .lista{min-height:40px}
+.vazio{color:var(--text-dim);padding:6px 10px 10px;font-size:14px}
+
+/* ---- item ---- */
+.item{
+  display:flex;align-items:flex-start;gap:10px;padding:7px 8px 7px 4px;border-radius:6px;position:relative;
+  transition:background .12s;
+}
+.item:hover{background:var(--bg-card)}
+.item.arrastando{opacity:.35}
+.alca{
+  width:16px;height:22px;flex:none;display:grid;place-items:center;cursor:grab;color:var(--text-dim);
+  opacity:0;transition:opacity .12s;
+}
+.item:hover .alca{opacity:1}
+.caixa{
+  width:18px;height:18px;flex:none;margin-top:2px;border:1.5px solid var(--border-strong);border-radius:4px;
+  background:transparent;cursor:pointer;display:grid;place-items:center;color:var(--bg);
+  transition:background .12s,border-color .12s;
+}
+.caixa:hover{border-color:var(--text)}
+.caixa svg{opacity:0;transition:opacity .12s}
+.item.feito .caixa{background:var(--accent);border-color:var(--accent)}
+.item.feito .caixa svg{opacity:1}
+.ponto{width:18px;height:22px;flex:none;display:grid;place-items:center}
+.ponto::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--text-muted)}
+.texto{flex:1;min-width:0;outline:none;border-radius:3px;cursor:text;overflow-wrap:anywhere;padding:0 2px}
+.item.feito .texto{color:var(--text-dim);text-decoration:line-through;text-decoration-color:var(--border-strong)}
+.texto[contenteditable="true"]{box-shadow:0 0 0 1px var(--border-strong);background:var(--bg)}
+.apagar{
+  width:24px;height:24px;flex:none;border:0;background:transparent;color:var(--text-dim);border-radius:4px;
+  cursor:pointer;display:grid;place-items:center;opacity:0;transition:opacity .12s,color .12s;
+}
+.item:hover .apagar,.apagar:focus-visible{opacity:1}
+.apagar:hover{color:var(--text)}
+
+/* ---- adicionar ---- */
+.add{
+  display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px 7px 24px;border:0;background:transparent;
+  color:var(--text-dim);font:inherit;font-size:14px;cursor:pointer;border-radius:6px;text-align:left;
+}
+.add:hover{color:var(--text-muted);background:var(--bg-card)}
+.add-campo{
+  width:100%;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border-strong);
+  border-radius:6px;padding:7px 10px;margin:2px 0 4px;outline:none;
+}
+.add-campo::placeholder{color:var(--text-dim)}
+
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.texto:focus-visible{outline:none}
+
+@media (max-width:760px){
+  .pagina{padding:28px 16px 64px}
+  .grade{grid-template-columns:1fr}
+  :root:not(.widget) .alca,:root:not(.widget) .apagar{opacity:1}
+  header{align-items:flex-start}
+}
+/* ---- modo widget (Übersicht): uma coluna, compacto, seção vazia some ---- */
+.widget,.widget body{overflow:hidden}
+.widget body{font-size:13.5px;background:var(--bg);height:100vh;overflow-y:auto;scrollbar-width:none}
+.widget body::-webkit-scrollbar{display:none}
+.widget body::after{opacity:calc(var(--grao-op) * .8)}
+.widget .pagina{padding:18px 14px 24px}
+.widget header{flex-direction:column;align-items:flex-start;gap:6px;padding:0 6px 14px;margin-bottom:10px}
+.widget .eyebrow{margin-bottom:8px}
+.widget h1{font-size:24px}
+.widget #limpar,.widget #tema{display:none}
+.widget .contagem{margin:0}
+.widget .grade,.widget .coluna{display:flex;flex-direction:column;gap:0}
+.widget .secao{background:none;border:0;border-radius:0;padding:10px 0 6px;border-bottom:1px solid var(--border)}
+.widget .coluna:last-child .secao:last-child{border-bottom:0}
+.widget .secao.sem-itens{display:none}
+.widget .secao-topo{padding:0 6px 6px}
+.widget .item{padding:5px 6px 5px 0}
+.widget .alca{display:none}
+.widget .add{padding:4px 6px 4px 28px;height:0;overflow:hidden;opacity:0;transition:opacity .12s}
+.widget .secao:hover .add,.widget .add:focus-visible{height:auto;opacity:1}
+.widget .item{padding-left:6px}
+
+/* ---- widget largo (painel do canto da tela): duas colunas ---- */
+.widget.largo .pagina{padding:22px 22px 26px}
+.widget.largo header{flex-direction:row;align-items:flex-end;justify-content:space-between;padding:0 6px 16px;margin-bottom:6px}
+.widget.largo h1{font-size:28px}
+.widget.largo .grade{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;align-items:start}
+.widget.largo .secao{border-bottom:0;border-top:1px solid var(--border)}
+/* moldura: fio de 1px na borda da janela (painel do canto e widget da mesa) */
+.moldura body::before{content:"";position:fixed;inset:0;border:1px solid var(--border);border-radius:14px;pointer-events:none;z-index:60}
+.moldura.largo body::before{border-radius:16px}
+.widget.largo header{border-bottom:0;margin-bottom:0}
+.widget .estado{min-width:0}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="pagina">
+  <header>
+    <div>
+      <div class="eyebrow mono"><i></i>Task manager</div>
+      <h1 id="data">Hoje</h1>
+    </div>
+    <div class="painel">
+      <span class="contagem mono" id="contagem"></span>
+      <button class="btn" id="limpar" title="Tira da lista tudo o que já está feito">Limpar feitas</button>
+      <button class="btn" id="tema">Claro</button>
+      <span class="estado mono" id="estado" aria-live="polite"></span>
+    </div>
+  </header>
+  <main class="grade" id="grade"></main>
+</div>
+
+<template id="tpl-item">
+  <li class="item" draggable="false">
+    <span class="alca" aria-hidden="true"><svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/><circle cx="2" cy="7" r="1.3"/><circle cx="6" cy="7" r="1.3"/><circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/></svg></span>
+    <button class="caixa" role="checkbox"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.4 2.4L9.6 3.6"/></svg></button>
+    <span class="texto"></span>
+    <button class="apagar" aria-label="Apagar"><svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 3l6 6M9 3l-6 6"/></svg></button>
+  </li>
+</template>
+
+<script>
+const $ = s => document.querySelector(s);
+let estado = { versao: null, dados: null };
+let editando = false;
+let arrastado = null;
+
+/* ---- data do topo ---- */
+function pintarData() {
+  const d = new Date();
+  const dia = d.toLocaleDateString('pt-BR', { weekday: 'long' });
+  const resto = d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+  $('#data').innerHTML = `${dia[0].toUpperCase() + dia.slice(1)}, <span>${resto}</span>`;
+}
+
+/* ---- tema ---- */
+const TEMAS = ['', 'claro', 'escuro'];
+const NOME_TEMA = { '': 'Tema auto', claro: 'Tema claro', escuro: 'Tema escuro' };
+function pintarTema() { $('#tema').textContent = NOME_TEMA[document.documentElement.dataset.tema || '']; }
+$('#tema').onclick = () => {
+  const atual = document.documentElement.dataset.tema || '';
+  const prox = TEMAS[(TEMAS.indexOf(atual) + 1) % TEMAS.length];
+  if (prox) document.documentElement.dataset.tema = prox; else delete document.documentElement.dataset.tema;
+  try { localStorage.setItem('tm-tema', prox); } catch (e) {}
+  pintarTema();
+};
+
+/* ---- rede ---- */
+function sinal(txt, erro) {
+  const el = $('#estado'); el.textContent = txt; el.classList.toggle('erro', !!erro);
+  clearTimeout(sinal.t);
+  if (!erro && txt) sinal.t = setTimeout(() => (el.textContent = ''), 1400);
+}
+async function op(corpo) {
+  try {
+    const r = await fetch('/api/op', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+    const j = await r.json();
+    estado = { versao: j.versao, dados: j.dados };
+    render();
+    sinal(r.ok ? 'Salvo' : j.erro, !r.ok);
+  } catch (e) { sinal('Sem conexão', true); }
+}
+async function puxar() {
+  if (editando || arrastado) return;
+  try {
+    const j = await (await fetch('/api/tarefas', { cache: 'no-store' })).json();
+    if (j.versao !== estado.versao) { estado = j; render(); }
+    if ($('#estado').classList.contains('erro')) sinal('');
+  } catch (e) { sinal('Sem conexão', true); }
+}
+
+/* ---- render ---- */
+function render() {
+  const { dados } = estado; if (!dados) return;
+  const grade = $('#grade');
+  const foco = document.activeElement?.dataset?.secaoAdd;
+  grade.innerHTML = '';
+  let abertas = 0, feitas = 0;
+
+  let colunas = dados.colunas;
+  if (document.documentElement.classList.contains('largo')) {
+    const resto = colunas.flat().filter(id => id !== 'demoradas' && id !== 'rapidas');
+    colunas = [['demoradas'], ['rapidas', ...resto]];
+  }
+  for (const coluna of colunas) {
+    const col = document.createElement('div'); col.className = 'coluna';
+    for (const sid of coluna) {
+      const sec = dados.secoes[sid];
+      const nota = sec.tipo === 'nota';
+      const box = document.createElement('section'); box.className = 'secao' + (sec.itens.length ? '' : ' sem-itens');
+      const pend = sec.itens.filter(i => !i.feito).length;
+      if (!nota) { abertas += pend; feitas += sec.itens.length - pend; }
+      box.innerHTML = `<div class="secao-topo"><h2 class="mono">${sec.titulo}${sec.dica ? `<small>${sec.dica}</small>` : ''}</h2><span class="n mono">${nota ? sec.itens.length : pend || ''}</span></div>`;
+
+      const ul = document.createElement('ul'); ul.className = 'lista'; ul.dataset.secao = sid;
+      for (const it of sec.itens) ul.append(montarItem(it, nota));
+      ligarSoltar(ul);
+      box.append(ul);
+      if (!sec.itens.length) {
+        const v = document.createElement('p'); v.className = 'vazio'; v.textContent = 'Nada aqui.'; box.append(v);
+      }
+      box.append(montarAdd(sid, foco === sid));
+      col.append(box);
+    }
+    grade.append(col);
+  }
+  $('#contagem').innerHTML = `<b>${abertas}</b> ${abertas === 1 ? 'aberta' : 'abertas'} · ${feitas} ${feitas === 1 ? 'feita' : 'feitas'}`;
+  $('#limpar').disabled = !feitas && !Object.values(dados.secoes).some(s => s.itens.some(i => i.feito));
+}
+
+function montarItem(it, nota) {
+  const li = $('#tpl-item').content.firstElementChild.cloneNode(true);
+  li.dataset.id = it.id;
+  li.classList.toggle('feito', !!it.feito);
+  const caixa = li.querySelector('.caixa');
+  if (nota) {
+    const p = document.createElement('span'); p.className = 'ponto'; caixa.replaceWith(p);
+  } else {
+    caixa.setAttribute('aria-checked', it.feito ? 'true' : 'false');
+    caixa.setAttribute('aria-label', it.feito ? 'Reabrir' : 'Marcar como feita');
+    caixa.onclick = () => op({ op: 'toggle', id: it.id });
+  }
+  const tx = li.querySelector('.texto');
+  tx.textContent = it.texto;
+  tx.tabIndex = 0;
+  tx.onclick = () => editar(tx, it);
+  tx.onkeydown = e => { if (e.key === 'Enter' && tx.contentEditable !== 'true') { e.preventDefault(); editar(tx, it); } };
+  li.querySelector('.apagar').onclick = () => op({ op: 'delete', id: it.id });
+
+  const alca = li.querySelector('.alca');
+  alca.onmousedown = () => (li.draggable = true);
+  li.ondragstart = e => { arrastado = it.id; li.classList.add('arrastando'); document.body.classList.add('arrastando'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', it.id); };
+  li.ondragend = () => { li.draggable = false; li.classList.remove('arrastando'); document.body.classList.remove('arrastando'); arrastado = null; document.querySelectorAll('.alvo').forEach(x => x.classList.remove('alvo')); };
+  return li;
+}
+
+function editar(tx, it) {
+  if (tx.contentEditable === 'true') return;
+  editando = true;
+  tx.contentEditable = 'true';
+  tx.focus();
+  const r = document.createRange(); r.selectNodeContents(tx); r.collapse(false);
+  const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  let fechado = false;
+  const fechar = salvar => {
+    if (fechado) return; fechado = true;
+    tx.contentEditable = 'false'; editando = false;
+    const novo = tx.textContent.trim();
+    if (!salvar || novo === it.texto) { tx.textContent = it.texto; return; }
+    op(novo ? { op: 'edit', id: it.id, texto: novo } : { op: 'delete', id: it.id });
+  };
+  tx.onblur = () => fechar(true);
+  tx.onkeydown = e => {
+    if (e.key === 'Enter') { e.preventDefault(); fechar(true); }
+    if (e.key === 'Escape') { e.preventDefault(); fechar(false); tx.blur(); }
+  };
+}
+
+function montarAdd(sid, reabrir) {
+  const wrap = document.createElement('div');
+  const botao = document.createElement('button');
+  botao.className = 'add'; botao.innerHTML = '<span aria-hidden="true">+</span> Adicionar';
+  const abrir = () => {
+    editando = true;
+    const campo = document.createElement('input');
+    campo.className = 'add-campo'; campo.placeholder = 'Uma linha, o mais objetivo possível'; campo.dataset.secaoAdd = sid;
+    wrap.replaceChildren(campo); campo.focus();
+    campo.onkeydown = e => {
+      if (e.key === 'Enter' && campo.value.trim()) { const texto = campo.value; campo.value = ''; editando = false; op({ op: 'add', secao: sid, texto }); }
+      if (e.key === 'Escape') { editando = false; wrap.replaceChildren(botao); }
+    };
+    campo.onblur = () => setTimeout(() => {
+      if (document.activeElement === campo) return;
+      if (campo.value.trim()) op({ op: 'add', secao: sid, texto: campo.value });
+      editando = false; if (campo.isConnected) wrap.replaceChildren(botao);
+    }, 0);
+  };
+  botao.onclick = abrir;
+  wrap.append(botao);
+  if (reabrir) queueMicrotask(abrir);
+  return wrap;
+}
+
+function ligarSoltar(ul) {
+  const posicao = y => {
+    const itens = [...ul.querySelectorAll('.item:not(.arrastando)')];
+    const i = itens.findIndex(el => { const r = el.getBoundingClientRect(); return y < r.top + r.height / 2; });
+    return i === -1 ? itens.length : i;
+  };
+  ul.ondragover = e => { if (!arrastado) return; e.preventDefault(); ul.classList.add('alvo'); };
+  ul.ondragleave = e => { if (!ul.contains(e.relatedTarget)) ul.classList.remove('alvo'); };
+  ul.ondrop = e => {
+    e.preventDefault(); ul.classList.remove('alvo');
+    const id = arrastado; if (!id) return;
+    op({ op: 'move', id, secao: ul.dataset.secao, pos: posicao(e.clientY) });
+  };
+}
+
+$('#limpar').onclick = () => op({ op: 'limpar' });
+
+pintarData(); pintarTema(); puxar();
+setInterval(puxar, 2000);
+setInterval(pintarData, 60000);
+</script>
+</body>
+</html>

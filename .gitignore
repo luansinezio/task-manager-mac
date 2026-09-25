@@ -1,0 +1,9 @@
+# tarefas de cada pessoa ficam só na máquina dela
+dados/tarefas.json
+dados/.trava
+dados/*.tmp
+__pycache__/
+.DS_Store
+# notas internas do workspace de origem
+AGENTS.md
+STATUS.md

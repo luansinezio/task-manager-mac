@@ -1,0 +1,21 @@
+{
+  "colunas": [
+    ["rapidas", "demoradas", "particular"],
+    ["semana", "amanha", "anotacoes"]
+  ],
+  "secoes": {
+    "rapidas": {"titulo": "Rápidas", "dica": "5 minutos", "tipo": "check", "itens": [
+      {"id": "t01", "texto": "Clique no quadrado pra marcar como feita", "feito": false},
+      {"id": "t02", "texto": "Clique no texto pra editar, Enter salva", "feito": false}
+    ]},
+    "demoradas": {"titulo": "Demoradas", "dica": "1 hora", "tipo": "check", "itens": [
+      {"id": "t03", "texto": "Arraste pela alça da esquerda pra mudar de seção", "feito": false}
+    ]},
+    "particular": {"titulo": "Particular", "dica": "", "tipo": "check", "itens": []},
+    "semana": {"titulo": "Semana seguinte", "dica": "", "tipo": "check", "itens": []},
+    "amanha": {"titulo": "Para amanhã", "dica": "", "tipo": "check", "itens": []},
+    "anotacoes": {"titulo": "Anotações e lembretes", "dica": "sem check", "tipo": "nota", "itens": [
+      {"id": "n01", "texto": "Anotação é bullet, sem check", "feito": false}
+    ]}
+  }
+}
