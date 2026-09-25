@@ -11,7 +11,7 @@
 <script>
   const q = new URLSearchParams(location.search);
   // ?app: janela do app Tarefas; segue o tema do sistema pra combinar com a barra de título
-  if (q.has('app')) document.documentElement.classList.add('app');
+  if (q.has('app')) document.documentElement.classList.add('app', 'widget');
   if (!q.has('widget') && !q.has('app')) try { const t = localStorage.getItem('tm-tema'); if (t) document.documentElement.dataset.tema = t; } catch (e) {}
   if (q.has('moldura')) document.documentElement.classList.add('moldura');
   if (q.has('widget')) {
@@ -80,6 +80,7 @@ h1 span{color:var(--text-dim)}
 .btn:disabled:hover{border-color:var(--border);color:var(--text-muted)}
 .estado{color:var(--text-dim);min-width:70px;text-align:right}
 .estado.erro{color:var(--accent)}
+.estado:empty{display:none}
 
 /* ---- grade ---- */
 .grade{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
@@ -158,15 +159,21 @@ body.arrastando .lista{min-height:40px}
 .widget .eyebrow{margin-bottom:8px}
 .widget h1{font-size:24px}
 .widget #limpar,.widget #tema,.app #tema{display:none}
-.app .pagina{padding:0 40px 48px}
+/* ---- janela do app Tarefas (?widget&app): o widget compacto numa janela; larga vira duas colunas ---- */
+.app.widget .pagina{padding:0 20px 24px}
 /* a linha do eyebrow fica na altura dos botões da janela; quando eles aparecem, ela sai de cena */
-.app .eyebrow{height:28px;margin-bottom:10px;transition:opacity .18s ease}
+.app .eyebrow{height:28px;margin-bottom:2px;transition:opacity .18s ease}
 .app.botoes .eyebrow{opacity:0}
-.app .engrenagem{top:-1px}
-.app,.app body{scrollbar-width:none}
-.app::-webkit-scrollbar,.app body::-webkit-scrollbar{display:none}
-.app h1{font-size:clamp(28px,4vw,40px)}
-@media (max-width:760px){.app .pagina{padding:0 28px 36px}}
+.app header{padding-top:0}
+.app .engrenagem{top:-1px;right:0}
+.app.widget #limpar{
+  display:inline-block;height:auto;padding:0;border:0;background:none;border-radius:0;
+  color:var(--text-dim);font-size:11px;letter-spacing:.18em;
+}
+.app.widget #limpar::before{content:"·";margin-right:10px;color:var(--text-dim)}
+.app.widget #limpar:hover{color:var(--text)}
+.app.widget #limpar:disabled{display:none}
+.app .painel{gap:10px}
 .widget .contagem{margin:0}
 .widget .grade,.widget .coluna{display:flex;flex-direction:column;gap:0}
 .widget .secao{background:none;border:0;border-radius:0;padding:10px 0 6px;border-bottom:1px solid var(--border)}
@@ -188,6 +195,8 @@ body.arrastando .lista{min-height:40px}
 /* moldura: fio de 1px na borda da janela (painel do canto e widget da mesa) */
 .moldura body::before{content:"";position:fixed;inset:0;border:1px solid var(--border);border-radius:14px;pointer-events:none;z-index:60}
 .moldura.largo body::before{border-radius:16px}
+.app.widget.largo .pagina{padding:0 22px 24px}
+.app.widget.largo header{padding-right:6px}
 .widget.largo header{border-bottom:0;margin-bottom:0}
 .widget .estado{min-width:0}
 
@@ -495,6 +504,18 @@ function reportarAltura() {
 }
 new ResizeObserver(reportarAltura).observe($('.pagina'));
 document.fonts?.ready.then(reportarAltura);
+
+// janela do app: duas colunas quando está larga
+if (document.documentElement.classList.contains('app')) {
+  const ajustarLargura = () => {
+    const largo = innerWidth >= 700;
+    if (largo === document.documentElement.classList.contains('largo')) return;
+    document.documentElement.classList.toggle('largo', largo);
+    render();
+  };
+  addEventListener('resize', ajustarLargura);
+  ajustarLargura();
+}
 
 pintarData(); pintarTema(); puxar();
 setInterval(puxar, 2000);
