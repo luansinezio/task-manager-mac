@@ -262,6 +262,9 @@ header{position:relative}
 .item.ia-fazendo .meta-ia svg{animation:pulso 1.6s ease-in-out infinite}
 @keyframes pulso{50%{opacity:.35}}
 .item.ia-revisar .meta-ia .quem{color:var(--text)}
+.item.ia-parada .barra-ia i{background:var(--text-dim)}
+.item.ia-parada .barra-ia i::after,.item.ia-parada .meta-ia svg{animation:none}
+.item.ia-parada .meta-ia .quem{color:var(--text-muted)}
 .selo{font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.16em;font-size:9.5px;
   border:1px solid var(--border-strong);border-radius:4px;padding:1px 5px;color:var(--text);white-space:nowrap}
 .pra-ia{
@@ -429,6 +432,12 @@ function logoDe(agente) {
 function nomeDe(agente) { return (AGENTES[agente] || [agente && agente !== 'ia' ? agente[0].toUpperCase() + agente.slice(1) : 'IA'])[0]; }
 const esc = t => String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+function minutosDesde(quando) {
+  if (!quando) return 0;
+  const t = new Date(quando).getTime();
+  return isNaN(t) ? 0 : Math.floor((Date.now() - t) / 60000);
+}
+
 function montarMetaIA(li, it) {
   const ia = it.ia || {};
   const daIA = it.dono === 'ia';
@@ -440,7 +449,12 @@ function montarMetaIA(li, it) {
     linha = `${FAISCA}<span class="quem">Pra IA</span><span class="nota">na fila</span>`;
   } else if (estado === 'fazendo') {
     const pct = ia.progresso || 0;
-    linha = `${logoDe(ia.agente)}<span class="quem">${nome} · ${pct}%</span>${ia.nota ? `<span class="nota">${esc(ia.nota)}</span>` : ''}`;
+    const quieto = minutosDesde(ia.atualizado || ia.inicio);
+    const parado = quieto > 30;
+    const etapa = ia.etapa ? ` · ${esc(ia.etapa)}` : '';
+    const nota = parado ? `sem notícia há ${quieto < 120 ? quieto + ' min' : Math.round(quieto / 60) + ' h'}` : ia.nota;
+    if (parado) li.classList.add('ia-parada');
+    linha = `${logoDe(ia.agente)}<span class="quem">${nome}${etapa} · ${pct}%</span>${nota ? `<span class="nota">${esc(nota)}</span>` : ''}`;
     barra = `<div class="barra-ia" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.max(pct, 3)}%"></i></div>`;
   } else if (estado === 'revisar') {
     linha = `${logoDe(ia.agente)}<span class="selo">Revisar</span><span class="nota">${esc(ia.nota)}</span>`;

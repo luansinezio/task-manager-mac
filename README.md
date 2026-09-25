@@ -98,16 +98,25 @@ Como funciona:
 
 Na tela, a faísca ao lado de cada tarefa passa ela pra IA ou pega de volta.
 
+### Barra de status de toda sessão
+
+A lista não é só pro que você passa pra IA: ela mostra tudo que as IAs estão fazendo, no nível macro.
+
+- Toda sessão do Claude Code começa com um resumo da lista (o que está rodando, o que está parado, o que espera você). No Codex e no Gemini a regra entra nas instruções globais.
+- Quando a IA começa um trabalho de verdade, chama `comecar_trabalho`: se já existe uma tarefa sua parecida, ela se pendura nela; se não, cria uma tarefa macro dela. Na dúvida, mostra as candidatas e escolhe.
+- Subtarefa não vira item: vira etapa (`Claude · 3/7 · 40%`).
+- Sessão que morreu no meio deixa a tarefa como "sem notícia há X min", e a próxima sessão vê isso ao começar.
+
 ### Conectar a IA
 
-O `./instalar.sh` já conecta o servidor MCP (`mcp.py`) no que encontrar: Claude Code, Claude Desktop, Codex e Gemini CLI. Pra rodar só essa parte: `./scripts/conectar-ia.sh` (e `--remover` pra desfazer). Em outra IA com MCP, aponte pra:
+O `./instalar.sh` já conecta o servidor MCP (`mcp.py`) no que encontrar: Claude Code, Claude Desktop, Codex e Gemini CLI. Também liga o resumo de início de sessão (gancho `SessionStart` do Claude Code, em `scripts/sessao.py`) e um bloco marcado nas instruções globais do Codex (`~/.codex/AGENTS.md`) e do Gemini (`~/.gemini/GEMINI.md`). Pra rodar só essa parte: `./scripts/conectar-ia.sh` (e `--remover` pra desfazer). Em outra IA com MCP, aponte pra:
 
 ```
 command: python3
 args: /caminho/task-manager-mac/mcp.py
 ```
 
-Ferramentas: `listar_tarefas`, `adicionar_tarefa`, `definir_dono`, `pegar_tarefa`, `informar_progresso`, `concluir_tarefa`, `devolver_tarefa`, `marcar_feita`. As regras de triagem vão junto, nas instruções do servidor. O logo sai do nome que a IA informa ao conectar.
+Ferramentas: `comecar_trabalho`, `listar_tarefas`, `adicionar_tarefa`, `definir_dono`, `pegar_tarefa`, `informar_progresso`, `concluir_tarefa`, `devolver_tarefa`, `marcar_feita`. As regras de triagem vão junto, nas instruções do servidor. O logo sai do nome que a IA informa ao conectar.
 
 Sem MCP, o mesmo pelo terminal:
 

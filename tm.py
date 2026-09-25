@@ -16,6 +16,8 @@ Copiloto de IA (o mesmo que o MCP em mcp.py faz):
   python3 tm.py progresso t04 40 "lendo a conversa"
   python3 tm.py concluir t04 "o que foi feito" [revisar]
   python3 tm.py devolver t04 "o que falta pra IA seguir"
+  python3 tm.py comecar claude "Título do trabalho macro" [secao]   (acha a tarefa parecida ou cria)
+  python3 tm.py resumo           (o que entra no início de cada sessão de IA)
 """
 import fcntl
 import hashlib
@@ -24,6 +26,7 @@ import os
 import sys
 import tempfile
 import time
+import unicodedata
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -67,6 +70,35 @@ def _achar(dados, id_):
             if item["id"] == id_:
                 return sid, i, item
     raise KeyError(f"tarefa {id_} não existe")
+
+
+PALAVRAS_VAZIAS = {"de", "da", "do", "das", "dos", "e", "o", "a", "os", "as", "um", "uma", "pra", "para",
+                   "com", "no", "na", "nos", "nas", "em", "por", "que", "se", "ao", "the", "and"}
+
+
+def _palavras(texto):
+    t = unicodedata.normalize("NFKD", texto.lower())
+    t = "".join(c if c.isalnum() else " " for c in t if not unicodedata.combining(c))
+    return {p for p in t.split() if len(p) > 2 and p not in PALAVRAS_VAZIAS}
+
+
+def parecidas(dados, titulo, minimo=0.5):
+    """Tarefas abertas com texto parecido com o título, da mais parecida pra menos: [(nota, sid, item)]."""
+    alvo = _palavras(titulo)
+    achadas = []
+    for sid, sec in dados["secoes"].items():
+        if sec["tipo"] != "check":
+            continue
+        for it in sec["itens"]:
+            if it["feito"]:
+                continue
+            p = _palavras(it["texto"])
+            if not p or not alvo:
+                continue
+            nota = len(alvo & p) / min(len(alvo), len(p))
+            if nota >= minimo:
+                achadas.append((round(nota, 2), sid, it))
+    return sorted(achadas, key=lambda x: -x[0])
 
 
 def _novo_id(dados):
@@ -130,7 +162,7 @@ def aplicar(op):
             item["dono"] = "ia"
             item["feito"] = False
             item["ia"] = {"agente": op.get("agente") or "ia", "estado": "fazendo", "progresso": 0,
-                          "nota": (op.get("nota") or "").strip(), "inicio": agora}
+                          "nota": (op.get("nota") or "").strip(), "inicio": agora, "atualizado": agora}
         elif tipo == "ia_progresso":
             _, _, item = _achar(dados, op["id"])
             ia = item.setdefault("ia", {"agente": op.get("agente") or "ia"})
@@ -141,11 +173,17 @@ def aplicar(op):
                 ia["nota"] = op["nota"].strip()
             if op.get("agente"):
                 ia["agente"] = op["agente"]
+            if op.get("etapa"):
+                ia["etapa"] = str(op["etapa"]).strip()
+            ia["atualizado"] = agora
         elif tipo == "ia_concluir":
             _, _, item = _achar(dados, op["id"])
             ia = item.setdefault("ia", {"agente": op.get("agente") or "ia"})
             item["dono"] = "ia"
-            ia.update(progresso=100, nota=(op.get("resumo") or "").strip(), fim=agora)
+            ia.update(progresso=100, nota=(op.get("resumo") or "").strip(), fim=agora, atualizado=agora)
+            ia.pop("etapa", None)
+            if op.get("resultado"):
+                ia["resultado"] = op["resultado"].strip()
             if op.get("revisar"):
                 ia["estado"] = "revisar"           # fica aberta até você conferir e marcar
             else:
@@ -156,7 +194,7 @@ def aplicar(op):
             _, _, item = _achar(dados, op["id"])
             ia = item.setdefault("ia", {"agente": op.get("agente") or "ia"})
             item["dono"] = "voce"
-            ia.update(estado="devolvida", nota=(op.get("falta") or "").strip(), fim=agora)
+            ia.update(estado="devolvida", nota=(op.get("falta") or "").strip(), fim=agora, atualizado=agora)
         elif tipo == "limpar":
             for sec in dados["secoes"].values():
                 sec["itens"] = [it for it in sec["itens"] if not it["feito"]]
@@ -164,6 +202,43 @@ def aplicar(op):
             raise ValueError(f"operação desconhecida: {tipo}")
 
         return dados, gravar(dados)
+
+
+def resumo(agora=None):
+    """Texto curto pro começo de cada sessão de IA: o que está rodando, o que espera a pessoa, o que está parado."""
+    dados, _ = ler()
+    agora = agora or time.time()
+    rodando, esperando, parados, abertas = [], [], [], 0
+    for sec in dados["secoes"].values():
+        if sec["tipo"] != "check":
+            continue
+        for it in sec["itens"]:
+            if it["feito"]:
+                continue
+            abertas += 1
+            ia = it.get("ia") or {}
+            est = ia.get("estado")
+            quem = ia.get("agente", "ia")
+            if est == "fazendo":
+                try:
+                    parado = agora - time.mktime(time.strptime(ia.get("atualizado") or ia.get("inicio"), "%Y-%m-%dT%H:%M:%S"))
+                except (TypeError, ValueError):
+                    parado = 0
+                linha = f"{it['id']} {it['texto']} ({quem}, {ia.get('progresso', 0)}%)"
+                (parados if parado > 30 * 60 else rodando).append(linha + (f", sem notícia há {int(parado // 60)} min" if parado > 30 * 60 else ""))
+            elif est in ("revisar", "devolvida", "aguardando"):
+                esperando.append(f"{it['id']} {it['texto']} ({est})")
+    partes = [f"Task Manager (MCP tarefas): {abertas} tarefas abertas."]
+    if rodando:
+        partes.append("IA fazendo agora: " + "; ".join(rodando) + ".")
+    if parados:
+        partes.append("Paradas sem atualização (retome ou devolva): " + "; ".join(parados) + ".")
+    if esperando:
+        partes.append("Esperando a pessoa: " + "; ".join(esperando) + ".")
+    partes.append("Regra: todo trabalho macro desta sessão aparece na lista. Ao começar, chame comecar_trabalho "
+                  "(acha a tarefa da pessoa ou cria uma macro); atualize com informar_progresso a cada etapa real; "
+                  "feche com concluir_tarefa. Subtarefa não vira item, vira etapa. Pergunta rápida ou conversa não conta.")
+    return "\n".join(partes)
 
 
 def _lista():
@@ -190,6 +265,21 @@ if __name__ == "__main__":
     if not a or a[0] == "lista":
         _lista()
         sys.exit()
+    if a[0] == "resumo":
+        print(resumo())
+        sys.exit()
+    if a[0] == "comecar":
+        dados, _ = ler()
+        achadas = [x for x in parecidas(dados, a[2]) if x[0] >= 0.75]
+        if achadas:
+            alvo = achadas[0][2]["id"]
+        else:
+            secao = a[3] if len(a) > 3 else "demoradas"
+            dados, _ = aplicar({"op": "add", "secao": secao, "texto": a[2]})
+            alvo = dados["secoes"][secao]["itens"][-1]["id"]
+        aplicar({"op": "ia_pegar", "id": alvo, "agente": a[1]})
+        print(alvo)
+        sys.exit()
     cmd = a[0]
     ops = {
         "add": lambda: {"op": "add", "secao": a[1], "texto": a[2]},
@@ -200,7 +290,8 @@ if __name__ == "__main__":
         "limpar": lambda: {"op": "limpar"},
         "dono": lambda: {"op": "dono", "id": a[1], "dono": a[2]},
         "pegar": lambda: {"op": "ia_pegar", "id": a[1], "agente": a[2], "nota": a[3] if len(a) > 3 else ""},
-        "progresso": lambda: {"op": "ia_progresso", "id": a[1], "progresso": a[2], "nota": a[3] if len(a) > 3 else ""},
+        "progresso": lambda: {"op": "ia_progresso", "id": a[1], "progresso": a[2], "nota": a[3] if len(a) > 3 else "",
+                              "etapa": a[4] if len(a) > 4 else ""},
         "concluir": lambda: {"op": "ia_concluir", "id": a[1], "resumo": a[2], "revisar": len(a) > 3 and a[3] == "revisar"},
         "devolver": lambda: {"op": "ia_devolver", "id": a[1], "falta": a[2]},
     }

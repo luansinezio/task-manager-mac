@@ -5,7 +5,7 @@
   <key>CFBundleIdentifier</key><string>media.beza.tarefas</string>
   <key>CFBundleExecutable</key><string>Tarefas</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.4.0</string>
+  <key>CFBundleShortVersionString</key><string>0.5.0</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>NSAppleEventsUsageDescription</key><string>Pra ligar e desligar o widget da mesa no Übersicht.</string>

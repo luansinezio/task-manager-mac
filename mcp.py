@@ -17,22 +17,28 @@ import tm  # noqa: E402
 VERSAO_PROTOCOLO = "2025-06-18"
 
 INSTRUCOES = """Task Manager: a lista de tarefas da pessoa, que ela vê ao vivo no Mac (barra de menu, janela, widget).
-Você é o copiloto. Ao começar uma conversa em que a lista importa, chame listar_tarefas.
+Ela funciona como a barra de status de tudo que as IAs estão fazendo. Vale em toda sessão.
 
-Triagem: pra cada tarefa aberta sem dono, decida quem faz.
-- É da IA o que você resolve sozinho com as ferramentas que tem: escrever, pesquisar, rascunhar, organizar,
-  codar, analisar arquivo, preparar mensagem.
-- É da pessoa o que depende do corpo, do login, da decisão ou da presença dela: ligar, assinar, pagar,
-  decidir, reunião, ir a algum lugar.
-- Misturada: a IA faz a parte dela e devolve o resto (devolver_tarefa com o que falta).
-Registre a triagem com definir_dono. Não pegue tarefa sem a pessoa pedir ou autorizar.
+Barra de status (sempre):
+- Todo trabalho MACRO desta sessão aparece na lista. Macro é o que a pessoa chamaria de tarefa: "ajustar a
+  área de membros", "resolver o erro da Amazon", "montar a proposta da Samara". Pergunta rápida, conversa,
+  leitura ou comando solto não entram.
+- Ao começar um trabalho macro, chame comecar_trabalho com um título curto. Ela acha a tarefa da pessoa que
+  corresponde (e você se pendura nela) ou cria uma tarefa macro sua. Se ela devolver candidatas, escolha
+  o id certo ou peça pra criar.
+- Subtarefa não vira item. Ela vira etapa: informar_progresso com etapa "3/7" e uma nota curta do passo
+  (até 60 caracteres), a cada passo real, nunca a cada comando.
+- No fim, concluir_tarefa com um resumo de uma linha e, quando houver, o resultado (texto pronto ou
+  caminho do arquivo). Se parar no meio, devolver_tarefa dizendo o que falta. Não deixe tarefa em "fazendo"
+  quando a sessão termina.
 
-Ao trabalhar numa tarefa: pegar_tarefa no início; informar_progresso a cada etapa real (com uma nota
-curta do que está fazendo, no máximo 60 caracteres); concluir_tarefa no fim, com um resumo de uma linha
-do que foi feito e onde está o resultado.
+Triagem, quando a pessoa pedir pra organizar a lista: é da IA o que ela resolve sozinha com as ferramentas
+que tem (escrever, pesquisar, rascunhar, organizar, codar, analisar); é da pessoa o que depende do corpo,
+login, decisão ou presença dela. Registre com definir_dono. Só pegue tarefa da lista que a pessoa não pediu
+se ela autorizar.
 
-A IA prepara, a pessoa dispara. Tudo que sai pra fora e não desfaz (mandar email ou mensagem,
-publicar, pagar, apagar) vai com precisa_revisao=true: fica em "revisar" até a pessoa conferir e marcar.
+A IA prepara, a pessoa dispara. Tudo que sai pra fora e não desfaz (mandar email ou mensagem, publicar,
+pagar, apagar) vai com precisa_revisao=true e o texto no resultado: fica em "revisar" até a pessoa conferir.
 Nunca marque como feita uma tarefa da pessoa sem ela dizer que fez.
 
 Texto de tarefa: uma linha, objetivo, começando com maiúscula."""
@@ -75,6 +81,13 @@ def _id(props):
 
 
 FERRAMENTAS = [
+    {"name": "comecar_trabalho", "description": "Abre a barra de status de um trabalho macro: acha a tarefa da pessoa que corresponde ou cria uma tarefa macro da IA, e marca como em andamento. Chame no início de todo trabalho macro.",
+     "inputSchema": {"type": "object", "required": ["titulo"], "properties": {
+         "titulo": {"type": "string", "description": "Título curto do trabalho, como a pessoa escreveria"},
+         "id": {"type": "string", "description": "Id de uma tarefa existente, se você já sabe qual é"},
+         "criar": {"type": "boolean", "description": "true pra criar tarefa nova sem procurar parecida"},
+         "secao": {"type": "string", "description": "Onde criar: rapidas (minutos) ou demoradas (padrão)"},
+         "nota": {"type": "string", "description": "O primeiro passo, curto"}}}},
     {"name": "listar_tarefas", "description": "Lista as tarefas com id, seção, estado e dono.",
      "inputSchema": {"type": "object", "properties": {
          "filtro": {"type": "string", "enum": ["todas", "abertas", "ia", "voce"], "default": "abertas"}}}},
@@ -92,10 +105,12 @@ FERRAMENTAS = [
     {"name": "informar_progresso", "description": "Atualiza a barra de progresso (0 a 100) e a nota do que está fazendo.",
      "inputSchema": {"type": "object", "required": ["id", "progresso"], "properties": _id({
          "progresso": {"type": "integer", "minimum": 0, "maximum": 100},
-         "nota": {"type": "string"}})}},
+         "etapa": {"type": "string", "description": "Etapa atual, ex.: 3/7"},
+         "nota": {"type": "string", "description": "O passo atual, até 60 caracteres"}})}},
     {"name": "concluir_tarefa", "description": "Termina a tarefa. Sem revisão ela é marcada como feita; com precisa_revisao fica esperando a pessoa.",
      "inputSchema": {"type": "object", "required": ["id", "resumo"], "properties": _id({
          "resumo": {"type": "string", "description": "Uma linha: o que foi feito e onde está"},
+         "resultado": {"type": "string", "description": "O texto pronto (mensagem, resposta) ou o caminho do arquivo, pra pessoa ver sem abrir a sessão"},
          "precisa_revisao": {"type": "boolean", "default": False}})}},
     {"name": "devolver_tarefa", "description": "Passa a tarefa pra pessoa, dizendo o que falta pra seguir.",
      "inputSchema": {"type": "object", "required": ["id", "falta"], "properties": _id({
@@ -118,7 +133,31 @@ def agente_do_cliente(nome):
 AGENTE = "ia"
 
 
+def comecar(a):
+    if a.get("id"):
+        alvo = a["id"]
+    elif not a.get("criar"):
+        dados, _ = tm.ler()
+        cand = tm.parecidas(dados, a["titulo"])
+        certeira = cand and cand[0][0] >= 0.9 and (len(cand) == 1 or cand[0][0] - cand[1][0] >= 0.2)
+        if cand and not certeira:
+            linhas = "\n".join(f"  {it['id']} {it['texto']} (parecida {n})" for n, _, it in cand[:5])
+            return ("Achei tarefas parecidas. Chame de novo com id=<a certa>, ou criar=true se nenhuma for esse trabalho:\n" + linhas), None
+        alvo = cand[0][2]["id"] if cand else None
+    else:
+        alvo = None
+    criada = alvo is None
+    if criada:
+        secao = a.get("secao") or "demoradas"
+        dados, _ = tm.aplicar({"op": "add", "secao": secao, "texto": a["titulo"]})
+        alvo = dados["secoes"][secao]["itens"][-1]["id"]
+    tm.aplicar({"op": "ia_pegar", "id": alvo, "agente": AGENTE, "nota": a.get("nota", "")})
+    return (f"{'Criei' if criada else 'Peguei'} {alvo}. Informe o progresso por etapa e conclua no fim."), alvo
+
+
 def chamar(nome, a):
+    if nome == "comecar_trabalho":
+        return comecar(a)[0]
     if nome == "listar_tarefas":
         return texto_lista(a.get("filtro", "abertas"))
     if nome == "adicionar_tarefa":
@@ -134,10 +173,12 @@ def chamar(nome, a):
         tm.aplicar({"op": "ia_pegar", "id": a["id"], "agente": AGENTE, "nota": a.get("nota", "")})
         return f"{a['id']} em andamento por {AGENTE}. Informe o progresso a cada etapa."
     if nome == "informar_progresso":
-        tm.aplicar({"op": "ia_progresso", "id": a["id"], "progresso": a["progresso"], "nota": a.get("nota", ""), "agente": AGENTE})
+        tm.aplicar({"op": "ia_progresso", "id": a["id"], "progresso": a["progresso"], "nota": a.get("nota", ""),
+                    "etapa": a.get("etapa", ""), "agente": AGENTE})
         return f"{a['id']}: {a['progresso']}%."
     if nome == "concluir_tarefa":
-        tm.aplicar({"op": "ia_concluir", "id": a["id"], "resumo": a["resumo"], "revisar": a.get("precisa_revisao", False), "agente": AGENTE})
+        tm.aplicar({"op": "ia_concluir", "id": a["id"], "resumo": a["resumo"], "resultado": a.get("resultado", ""),
+                    "revisar": a.get("precisa_revisao", False), "agente": AGENTE})
         return f"{a['id']} " + ("esperando a revisão da pessoa." if a.get("precisa_revisao") else "concluída e marcada como feita.")
     if nome == "devolver_tarefa":
         tm.aplicar({"op": "ia_devolver", "id": a["id"], "falta": a["falta"], "agente": AGENTE})
@@ -178,7 +219,7 @@ def main():
             responder(id_, {
                 "protocolVersion": p.get("protocolVersion") or VERSAO_PROTOCOLO,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "tarefas", "version": "0.4.0"},
+                "serverInfo": {"name": "tarefas", "version": "0.5.0"},
                 "instructions": INSTRUCOES,
             })
         elif metodo == "tools/list":

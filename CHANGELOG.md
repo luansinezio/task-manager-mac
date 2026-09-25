@@ -3,6 +3,17 @@
 Versões seguem `MAIOR.MENOR.CORREÇÃO`. Enquanto estiver em 0.x, MENOR sobe a cada recurso novo e CORREÇÃO a cada ajuste.
 A primeira seção é a versão atual: é dela que o app lê o número e a lista de novidades.
 
+## 0.5.0 — 2026-09-25
+
+- A lista vira a barra de status de toda sessão de IA, não só das tarefas passadas pra ela
+- Toda sessão do Claude Code começa com o resumo da lista: o que está rodando, o que está parado e o que espera você
+- Codex e Gemini recebem a mesma regra nas instruções globais
+- Só trabalho macro entra: a IA se pendura na sua tarefa correspondente ou cria uma tarefa macro dela; subtarefa vira etapa
+- Nova ferramenta comecar_trabalho: acha a tarefa parecida ou cria, e pergunta quando tem dúvida
+- Progresso por etapa na tela (Claude · 3/7 · 40%)
+- Tarefa esquecida em andamento aparece como "sem notícia há X min", com a barra apagada
+- A IA guarda o resultado (texto pronto ou arquivo) dentro da tarefa
+
 ## 0.4.0 — 2026-09-25
 
 - Copiloto de IA: cada tarefa pode ser sua ou da IA
