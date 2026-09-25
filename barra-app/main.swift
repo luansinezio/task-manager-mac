@@ -12,6 +12,13 @@ let BASE = "http://localhost:8790"
 let WIDGET_ID = "task-manager-jsx"
 let UBERSICHT = "tracesOf.Uebersicht"
 
+// Faixa invisível no topo da janela: como a página ocupa a janela inteira, é por aqui que se arrasta.
+final class Arrasto: NSView {
+    override func mouseDown(with e: NSEvent) {
+        if e.clickCount == 2 { window?.performZoom(nil) } else { window?.performDrag(with: e) }
+    }
+}
+
 final class Painel: NSPanel {
     override var canBecomeKey: Bool { true }
     override func cancelOperation(_ sender: Any?) { orderOut(nil) }
@@ -84,7 +91,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
     // ---- janela normal (modo Dock) ----
     func montarJanela() {
         janela = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 720),
-                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                          styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         janela.title = "Tarefas"
         janela.titleVisibility = .hidden
@@ -97,9 +104,15 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
             a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                 ? NSColor(white: 0x0E / 255, alpha: 1) : NSColor(white: 0xEA / 255, alpha: 1)
         }
-        webJanela = WKWebView(frame: .zero, configuration: config())
+        let base = NSView(frame: NSRect(x: 0, y: 0, width: 980, height: 720))
+        webJanela = WKWebView(frame: base.bounds, configuration: config())
         webJanela.setValue(false, forKey: "drawsBackground")
-        janela.contentView = webJanela
+        webJanela.autoresizingMask = [.width, .height]
+        base.addSubview(webJanela)
+        let faixa = Arrasto(frame: NSRect(x: 0, y: base.bounds.height - 16, width: base.bounds.width, height: 16))
+        faixa.autoresizingMask = [.width, .minYMargin]
+        base.addSubview(faixa)
+        janela.contentView = base
         webJanela.load(URLRequest(url: URL(string: BASE + "/?app")!))
         janela.center()
         janela.setFrameAutosaveName("JanelaTarefas")
@@ -183,6 +196,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
         let mostrar = f.contains(p) && p.y >= f.maxY - 44
         if mostrar == botoesVisiveis { return }
         botoesVisiveis = mostrar
+        webJanela.evaluateJavaScript("document.documentElement.classList.toggle('botoes', \(mostrar))")
         NSAnimationContext.runAnimationGroup { c in c.duration = 0.18; barra.animator().alphaValue = mostrar ? 1 : 0 }
     }
 
