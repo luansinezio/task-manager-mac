@@ -11,9 +11,9 @@ echo "1/3  Servidor local (http://localhost:8790)"
 
 echo "2/3  App Tarefas na barra de menu"
 "$DIR/barra-app/instalar.sh"
-# O canto inferior direito passa a abrir a lista; desliga o Canto Ativo do macOS nesse canto pra não abrir os dois.
-defaults write com.apple.dock wvous-br-corner -int 1
-defaults write com.apple.dock wvous-br-modifier -int 0
+# O canto superior direito passa a abrir a lista; desliga o Canto Ativo do macOS nesse canto pra não abrir os dois.
+defaults write com.apple.dock wvous-tr-corner -int 1
+defaults write com.apple.dock wvous-tr-modifier -int 0
 killall Dock
 
 echo "3/3  Widget da mesa"
@@ -29,4 +29,4 @@ else
 fi
 
 echo
-echo "Pronto. Abra http://localhost:8790 ou encoste o mouse no canto inferior direito da tela."
+echo "Pronto. Abra http://localhost:8790 ou encoste o mouse no canto superior direito da tela."

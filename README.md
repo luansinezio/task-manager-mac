@@ -4,7 +4,7 @@ Lista de tarefas pessoal pro macOS, que roda 100% local e aparece em três lugar
 
 - **No navegador**, em `http://localhost:8790`
 - **Na barra de menu**, com o número de tarefas abertas; clicou, abre a lista num painel
-- **No canto da tela**: encostou o mouse no canto inferior direito, a lista abre no centro, larga e em duas colunas
+- **No canto da tela**: encostou o mouse no canto superior direito, a lista abre no centro, larga e em duas colunas
 - **Na mesa** (opcional), como widget fixo na área de trabalho
 
 Tudo lê o mesmo arquivo, então marcar num lugar atualiza os outros em segundos. Segue o tema do sistema (claro ou escuro) sozinho.
@@ -44,7 +44,7 @@ O instalador:
 
 1. Registra o servidor como serviço do macOS: sobe no login e reinicia se cair.
 2. Compila o app **Tarefas** (barra de menu e canto da tela) em `~/Applications/Tarefas.app` e coloca pra abrir no login.
-3. Desliga o Canto Ativo do macOS no canto inferior direito, pra não abrir duas coisas ao mesmo tempo.
+3. Desliga o Canto Ativo do macOS no canto superior direito, pra não abrir duas coisas ao mesmo tempo.
 4. Se o Übersicht estiver instalado, liga o widget da mesa.
 
 Na primeira vez a lista começa com tarefas de exemplo. Suas tarefas ficam em `dados/tarefas.json`, que não vai pro git.
@@ -58,7 +58,7 @@ Na primeira vez a lista começa com tarefas de exemplo. Suas tarefas ficam em `d
 | Adicionar | "+ Adicionar" no fim de cada seção |
 | Mudar de seção | Arraste pela alça à esquerda da tarefa (na página) |
 | Limpar o dia | Botão "Limpar feitas" tira tudo o que já foi marcado |
-| Canto da tela | Mouse no canto inferior direito abre; Esc, clique fora ou o canto de novo fecha |
+| Canto da tela | Mouse no canto superior direito abre; Esc, clique fora ou o canto de novo fecha |
 | Barra de menu | Clique abre o painel; botão direito tem Abrir no navegador, Recarregar e Sair |
 | Tema | Segue o sistema. Na página dá pra forçar claro ou escuro no botão de tema |
 

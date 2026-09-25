@@ -1,5 +1,5 @@
 // App de barra de menu do Task Manager: clicou no ícone, abre o painel compacto (o mesmo da mesa).
-// Encostou o mouse no canto inferior direito da tela, a lista abre no centro. Esc ou clique fora fecha.
+// Encostou o mouse no canto superior direito da tela, a lista abre no centro. Esc ou clique fora fecha.
 // Build e instalação: ./instalar.sh
 import Cocoa
 import WebKit
@@ -77,7 +77,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
         let p = NSEvent.mouseLocation
         let dentro = NSScreen.screens.contains { t in
             let f = t.frame
-            return p.x >= f.maxX - 3 && p.y <= f.minY + 3 && p.x <= f.maxX && p.y >= f.minY
+            return p.x >= f.maxX - 3 && p.y >= f.maxY - 3 && p.x <= f.maxX && p.y <= f.maxY
         }
         if !dentro { noCanto = false; entrouNoCanto = nil; return }
         if noCanto { return }
