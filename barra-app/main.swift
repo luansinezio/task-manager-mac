@@ -191,20 +191,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
         webCentro.load(URLRequest(url: URL(string: BASE + "/?widget&largo&moldura")!))
     }
 
-    // Botões da janela (fechar, minimizar, zoom) só aparecem com o mouse no topo dela
-    var botoesVisiveis = true
-    func vigiarBotoesJanela() {
-        guard let barra = janela.standardWindowButton(.closeButton)?.superview, janela.isVisible else { return }
-        let p = NSEvent.mouseLocation, f = janela.frame
-        let mostrar = f.contains(p) && p.y >= f.maxY - 56
-        if mostrar == botoesVisiveis { return }
-        botoesVisiveis = mostrar
-        webJanela.evaluateJavaScript("document.documentElement.classList.toggle('botoes', \(mostrar))")
-        NSAnimationContext.runAnimationGroup { c in c.duration = 0.18; barra.animator().alphaValue = mostrar ? 1 : 0 }
-    }
-
     func vigiarCanto() {
-        vigiarBotoesJanela()
         guard cantoLigado else { return }
         let p = NSEvent.mouseLocation
         let dentro = NSScreen.screens.contains { t in

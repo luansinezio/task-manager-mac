@@ -63,7 +63,7 @@ Na primeira vez a lista começa com tarefas de exemplo. Suas tarefas ficam em `d
 | Limpar o dia | Botão "Limpar feitas" tira tudo o que já foi marcado |
 | Canto da tela | Mouse no canto superior direito abre; Esc, clique fora ou o canto de novo fecha |
 | Barra de menu | Clique abre o painel; botão direito tem Ajustes, Abrir no navegador, Recarregar e Sair |
-| Janela | Nos ajustes, escolha Dock ou Os dois: clicar no ícone do Dock abre a lista numa janela normal (⌘W fecha, ⌘M minimiza) |
+| Janela | Nos ajustes, escolha Dock ou Os dois: clicar no ícone do Dock abre a lista numa janela normal, compacta, que vira duas colunas quando larga (⌘W fecha, ⌘M minimiza) |
 | Ajustes | Engrenagem no topo do painel: onde o app aparece (barra de menu, Dock ou os dois), widget da mesa ligado ou não, atalho do canto, abrir ao ligar o Mac |
 | Tema | Segue o sistema. Na página dá pra forçar claro ou escuro no botão de tema |
 
@@ -90,6 +90,10 @@ Seções: `rapidas`, `demoradas`, `particular`, `semana`, `amanha`, `anotacoes`.
 - **Posição e tamanho do widget da mesa:** `className` em `widget/task-manager.jsx`.
 - **Porta:** variável `TM_PORTA` (padrão 8790). Se mudar, ajuste `BASE` em `barra-app/main.swift` e a URL do widget.
 - Depois de mexer no app da barra: `./barra-app/instalar.sh` recompila.
+
+## Versões
+
+O histórico está em [CHANGELOG.md](CHANGELOG.md), e o app mostra as novidades da versão atual nos ajustes. Pra atualizar um Mac que já tem o app: `git pull && ./instalar.sh`.
 
 ## Desinstalar
 

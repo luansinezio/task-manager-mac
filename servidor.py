@@ -5,13 +5,27 @@
 """
 import json
 import os
+import re
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import tm
 
 PORTA = int(os.environ.get("TM_PORTA", "8790"))
-PUBLICO = Path(__file__).resolve().parent / "public"
+RAIZ = Path(__file__).resolve().parent
+PUBLICO = RAIZ / "public"
+
+
+def novidades():
+    """Lê o CHANGELOG.md: [{versao, data, itens}], a primeira é a atual."""
+    versoes = []
+    for linha in (RAIZ / "CHANGELOG.md").read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^## (\S+)(?: — (.+))?$", linha)
+        if m:
+            versoes.append({"versao": m.group(1), "data": m.group(2) or "", "itens": []})
+        elif linha.startswith("- ") and versoes:
+            versoes[-1]["itens"].append(linha[2:].strip())
+    return versoes
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -31,6 +45,8 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(bruto)
 
     def do_GET(self):
+        if self.path.startswith("/api/novidades"):
+            return self._json(200, novidades())
         if self.path.startswith("/api/tarefas"):
             dados, versao = tm.ler()
             return self._json(200, {"versao": versao, "dados": dados})

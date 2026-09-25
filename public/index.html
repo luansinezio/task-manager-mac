@@ -162,8 +162,7 @@ body.arrastando .lista{min-height:40px}
 /* ---- janela do app Tarefas (?widget&app): o widget compacto numa janela; larga vira duas colunas ---- */
 .app.widget .pagina{padding:0 20px 24px}
 /* a linha do eyebrow fica na altura dos botões da janela; quando eles aparecem, ela sai de cena */
-.app .eyebrow{height:var(--barra, 52px);margin-bottom:0;transition:opacity .18s ease}
-.app.botoes .eyebrow{opacity:0}
+.app .eyebrow{height:var(--barra, 52px);margin-bottom:0;visibility:hidden}
 .app header{padding-top:0}
 .app .engrenagem{top:calc(var(--barra, 52px) / 2 - 15px);right:0}
 .app.widget #limpar{
@@ -232,6 +231,15 @@ header{position:relative}
 .ajustes-pe{display:flex;gap:20px;padding-top:14px;border-top:1px solid var(--border)}
 .ajustes-pe a{color:var(--text-dim);text-decoration:none}
 .ajustes-pe a:hover{color:var(--text)}
+.novidades{padding-top:18px;margin-top:14px;border-top:1px solid var(--border)}
+.novidades h3{font-weight:500;color:var(--text);font-size:11px;display:flex;justify-content:space-between;margin-bottom:10px}
+.novidades h3 span{color:var(--text-dim)}
+.novidades ul{list-style:none;display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.novidades li{color:var(--text-muted);font-size:13px;padding-left:14px;position:relative}
+.novidades li::before{content:"";position:absolute;left:0;top:.62em;width:4px;height:4px;border-radius:50%;background:var(--text-dim)}
+.novidades button{font:inherit;background:none;border:0;color:var(--text-dim);cursor:pointer;padding:0}
+.novidades button:hover{color:var(--text)}
+.novidades .antigas h3{color:var(--text-muted)}
 .widget:not(.largo) .ajuste:first-child{flex-direction:column;align-items:flex-start;gap:10px}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -257,7 +265,7 @@ header{position:relative}
   <main class="grade" id="grade"></main>
   <section class="ajustes" id="ajustes" hidden>
     <div class="ajuste">
-      <div><b>Onde o app aparece</b><small>No Dock, clicar no ícone abre a lista no centro da tela</small></div>
+      <div><b>Onde o app aparece</b><small>No Dock, o app abre numa janela própria</small></div>
       <div class="segmentos" data-chave="modo">
         <button data-valor="menu">Barra de menu</button><button data-valor="dock">Dock</button><button data-valor="ambos">Os dois</button>
       </div>
@@ -275,6 +283,7 @@ header{position:relative}
       <button class="chave" role="switch" data-chave="login" aria-label="Abrir ao ligar o Mac"></button>
     </div>
     <p class="ajustes-pe mono"><a href="#" id="abrir-navegador">Abrir no navegador</a><a href="#" id="sair">Sair do app</a></p>
+    <div class="novidades" id="novidades"></div>
   </section>
 </div>
 
@@ -491,6 +500,19 @@ window.receberAjustes = a => {
   $('.chave[data-chave="widget"]').disabled = !a.widgetDisponivel;
   $('#widget-dica').textContent = a.widgetDisponivel ? 'A lista fixa na área de trabalho' : 'Precisa do Übersicht instalado (veja o README)';
 };
+// o que há de novo, lido do CHANGELOG.md pelo servidor
+async function pintarNovidades() {
+  try {
+    const v = await (await fetch('/api/novidades', { cache: 'no-store' })).json();
+    if (!v.length) return;
+    const bloco = x => `<h3 class="mono">Versão ${x.versao}<span>${x.data}</span></h3><ul>${x.itens.map(i => `<li>${i.replace(/</g, '&lt;')}</li>`).join('')}</ul>`;
+    $('#novidades').innerHTML = `<p class="mono" style="color:var(--text-dim);margin-bottom:12px">O que há de novo</p>${bloco(v[0])}` +
+      (v.length > 1 ? `<button class="mono" id="ver-historico">Ver versões anteriores</button><div class="antigas" hidden>${v.slice(1).map(bloco).join('')}</div>` : '');
+    const b = $('#ver-historico');
+    if (b) b.onclick = () => { $('.antigas').hidden = false; b.remove(); };
+  } catch (e) {}
+}
+if (ponte) pintarNovidades();
 window.mostrarAjustes = () => { if ($('#ajustes').hidden) $('#engrenagem').click(); };
 
 /* ---- altura: no modo widget, avisa quem hospeda (app Tarefas ou Übersicht) pra janela ter o tamanho da lista ---- */
