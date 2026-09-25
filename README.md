@@ -43,9 +43,11 @@ cd task-manager-mac
 O instalador:
 
 1. Registra o servidor como serviço do macOS: sobe no login e reinicia se cair.
-2. Compila o app **Tarefas** (barra de menu e canto da tela) em `~/Applications/Tarefas.app` e coloca pra abrir no login.
+2. Compila o app **Tarefas** (barra de menu, canto da tela e, se quiser, Dock) em `~/Applications/Tarefas.app`. Na primeira vez ele se registra pra abrir no login.
 3. Desliga o Canto Ativo do macOS no canto superior direito, pra não abrir duas coisas ao mesmo tempo.
 4. Se o Übersicht estiver instalado, liga o widget da mesa.
+
+Na primeira vez que você ligar ou desligar o widget pelos ajustes, o macOS pergunta se o Tarefas pode controlar o Übersicht. É só permitir.
 
 Na primeira vez a lista começa com tarefas de exemplo. Suas tarefas ficam em `dados/tarefas.json`, que não vai pro git.
 
@@ -59,7 +61,8 @@ Na primeira vez a lista começa com tarefas de exemplo. Suas tarefas ficam em `d
 | Mudar de seção | Arraste pela alça à esquerda da tarefa (na página) |
 | Limpar o dia | Botão "Limpar feitas" tira tudo o que já foi marcado |
 | Canto da tela | Mouse no canto superior direito abre; Esc, clique fora ou o canto de novo fecha |
-| Barra de menu | Clique abre o painel; botão direito tem Abrir no navegador, Recarregar e Sair |
+| Barra de menu | Clique abre o painel; botão direito tem Ajustes, Abrir no navegador, Recarregar e Sair |
+| Ajustes | Engrenagem no topo do painel: onde o app aparece (barra de menu, Dock ou os dois), widget da mesa ligado ou não, atalho do canto, abrir ao ligar o Mac |
 | Tema | Segue o sistema. Na página dá pra forçar claro ou escuro no botão de tema |
 
 ### Pelo terminal
@@ -100,7 +103,7 @@ Remove o serviço, o app e o widget. As tarefas em `dados/tarefas.json` ficam.
 servidor.py        API local (GET /api/tarefas, POST /api/op) e arquivos da página
 tm.py              núcleo: lê, altera e grava o JSON com trava e gravação atômica; também é a CLI
 public/index.html  a página (modos: normal, ?widget, ?widget&largo, &moldura, &tema=claro|escuro)
-barra-app/         app nativo em Swift (NSStatusItem + WKWebView), sem Xcode, compilado com swiftc
+barra-app/         app nativo em Swift (NSStatusItem + WKWebView), sem Xcode, compilado com swiftc; icone.swift gera o AppIcon.icns
 widget/            widget do Übersicht
 ```
 
