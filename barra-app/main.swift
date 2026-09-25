@@ -11,7 +11,7 @@ final class Painel: NSPanel {
     override func cancelOperation(_ sender: Any?) { orderOut(nil) }
 }
 
-final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindowDelegate {
+final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindowDelegate, WKScriptMessageHandler {
     var item: NSStatusItem!
     var painel: Painel!
     var webCentro: WKWebView!
@@ -31,7 +31,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
             b.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        web = WKWebView(frame: NSRect(x: 0, y: 0, width: 380, height: 660))
+        web = WKWebView(frame: NSRect(x: 0, y: 0, width: 380, height: 660), configuration: config())
         web.navigationDelegate = self
         web.setValue(false, forKey: "drawsBackground")
         let vc = NSViewController()
@@ -64,7 +64,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
         painel.hasShadow = true
         painel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         painel.delegate = self
-        webCentro = WKWebView(frame: painel.contentRect(forFrameRect: painel.frame))
+        webCentro = WKWebView(frame: painel.contentRect(forFrameRect: painel.frame), configuration: config())
         webCentro.setValue(false, forKey: "drawsBackground")
         webCentro.wantsLayer = true
         webCentro.layer?.cornerRadius = 16
@@ -87,11 +87,41 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
         painel.isVisible ? fecharCentro() : abrirCentro()
     }
 
+    // ---- altura: a página avisa o tamanho da lista e a janela acompanha ----
+    var alturaCentro: CGFloat = 680
+    var alturaPopover: CGFloat = 660
+
+    func config() -> WKWebViewConfiguration {
+        let c = WKWebViewConfiguration()
+        c.userContentController.add(self, name: "altura")
+        return c
+    }
+
+    func userContentController(_ u: WKUserContentController, didReceive m: WKScriptMessage) {
+        guard let n = m.body as? NSNumber else { return }
+        let h = CGFloat(truncating: n)
+        if m.webView === webCentro {
+            alturaCentro = h
+            if painel.isVisible {
+                // cresce e encolhe pra baixo: o topo fica parado enquanto a lista muda
+                let v = (painel.screen ?? NSScreen.main!).visibleFrame
+                var f = painel.frame
+                let nova = min(h, v.height - 80)
+                f.origin.y = max(v.minY + 40, f.maxY - nova)
+                f.size.height = nova
+                painel.setFrame(f, display: true, animate: false)
+            }
+        } else {
+            alturaPopover = min(h, 720)
+            popover.contentSize = NSSize(width: 380, height: alturaPopover)
+        }
+    }
+
     func abrirCentro() {
         let p = NSEvent.mouseLocation
         let tela = NSScreen.screens.first { NSMouseInRect(p, $0.frame, false) } ?? NSScreen.main!
         let v = tela.visibleFrame
-        let h = min(680, v.height - 80), w = min(860, v.width - 80)
+        let h = min(alturaCentro, v.height - 80), w = min(860, v.width - 80)
         painel.setFrame(NSRect(x: v.midX - w / 2, y: v.midY - h / 2, width: w, height: h), display: true)
         webCentro.evaluateJavaScript("puxar()")
         painel.alphaValue = 0

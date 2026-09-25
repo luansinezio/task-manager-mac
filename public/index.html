@@ -147,7 +147,7 @@ body.arrastando .lista{min-height:40px}
 }
 /* ---- modo widget (Übersicht): uma coluna, compacto, seção vazia some ---- */
 .widget,.widget body{overflow:hidden}
-.widget body{font-size:13.5px;background:var(--bg);height:100vh;overflow-y:auto;scrollbar-width:none}
+.widget body{font-size:13.5px;background:var(--bg);height:100vh;overflow-y:auto;overscroll-behavior:none;scrollbar-width:none}
 .widget body::-webkit-scrollbar{display:none}
 .widget body::after{opacity:calc(var(--grao-op) * .8)}
 .widget .pagina{padding:18px 14px 24px}
@@ -386,6 +386,18 @@ function ligarSoltar(ul) {
 }
 
 $('#limpar').onclick = () => op({ op: 'limpar' });
+
+/* ---- altura: no modo widget, avisa quem hospeda (app Tarefas ou Übersicht) pra janela ter o tamanho da lista ---- */
+function reportarAltura() {
+  if (!document.documentElement.classList.contains('widget')) return;
+  const h = Math.ceil($('.pagina').getBoundingClientRect().height);
+  if (h === reportarAltura.ultima) return;
+  reportarAltura.ultima = h;
+  try { window.webkit?.messageHandlers?.altura?.postMessage(h); } catch (e) {}
+  if (parent !== window) parent.postMessage({ tmAltura: h }, '*');
+}
+new ResizeObserver(reportarAltura).observe($('.pagina'));
+document.fonts?.ready.then(reportarAltura);
 
 pintarData(); pintarTema(); puxar();
 setInterval(puxar, 2000);
