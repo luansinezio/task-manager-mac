@@ -162,10 +162,10 @@ body.arrastando .lista{min-height:40px}
 /* ---- janela do app Tarefas (?widget&app): o widget compacto numa janela; larga vira duas colunas ---- */
 .app.widget .pagina{padding:0 20px 24px}
 /* a linha do eyebrow fica na altura dos botões da janela; quando eles aparecem, ela sai de cena */
-.app .eyebrow{height:28px;margin-bottom:2px;transition:opacity .18s ease}
+.app .eyebrow{height:var(--barra, 52px);margin-bottom:0;transition:opacity .18s ease}
 .app.botoes .eyebrow{opacity:0}
 .app header{padding-top:0}
-.app .engrenagem{top:-1px;right:0}
+.app .engrenagem{top:calc(var(--barra, 52px) / 2 - 15px);right:0}
 .app.widget #limpar{
   display:inline-block;height:auto;padding:0;border:0;background:none;border-radius:0;
   color:var(--text-dim);font-size:11px;letter-spacing:.18em;

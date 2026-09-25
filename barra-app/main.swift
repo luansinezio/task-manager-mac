@@ -99,6 +99,9 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
         janela.isReleasedWhenClosed = false
         janela.minSize = NSSize(width: 380, height: 420)
         janela.tabbingMode = .disallowed
+        // barra de título alta (sem itens): desce os botões e dá margem em cima; a página alinha o eyebrow com eles
+        janela.toolbar = NSToolbar(identifier: "tarefas")
+        janela.toolbarStyle = .unified
         // mesma cor do fundo da página, pra barra de título sumir nela
         janela.backgroundColor = NSColor(name: nil) { a in
             a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
@@ -193,7 +196,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
     func vigiarBotoesJanela() {
         guard let barra = janela.standardWindowButton(.closeButton)?.superview, janela.isVisible else { return }
         let p = NSEvent.mouseLocation, f = janela.frame
-        let mostrar = f.contains(p) && p.y >= f.maxY - 44
+        let mostrar = f.contains(p) && p.y >= f.maxY - 56
         if mostrar == botoesVisiveis { return }
         botoesVisiveis = mostrar
         webJanela.evaluateJavaScript("document.documentElement.classList.toggle('botoes', \(mostrar))")
