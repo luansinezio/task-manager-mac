@@ -158,13 +158,15 @@ body.arrastando .lista{min-height:40px}
 .widget .eyebrow{margin-bottom:8px}
 .widget h1{font-size:24px}
 .widget #limpar,.widget #tema,.app #tema{display:none}
-.app .pagina{padding:22px 40px 48px}
-.app .eyebrow{transition:transform .18s ease}
-.app.botoes .eyebrow{transform:translateX(58px)}
+.app .pagina{padding:0 40px 48px}
+/* a linha do eyebrow fica na altura dos botões da janela; quando eles aparecem, ela sai de cena */
+.app .eyebrow{height:28px;margin-bottom:10px;transition:opacity .18s ease}
+.app.botoes .eyebrow{opacity:0}
+.app .engrenagem{top:-1px}
 .app,.app body{scrollbar-width:none}
 .app::-webkit-scrollbar,.app body::-webkit-scrollbar{display:none}
 .app h1{font-size:clamp(28px,4vw,40px)}
-@media (max-width:760px){.app .pagina{padding:22px 28px 36px}}
+@media (max-width:760px){.app .pagina{padding:0 28px 36px}}
 .widget .contagem{margin:0}
 .widget .grade,.widget .coluna{display:flex;flex-direction:column;gap:0}
 .widget .secao{background:none;border:0;border-radius:0;padding:10px 0 6px;border-bottom:1px solid var(--border)}
