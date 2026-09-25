@@ -1,7 +1,7 @@
 // App Tarefas: o Task Manager fora do navegador.
 // Barra de menu: clicou no ícone, abre o painel compacto (o mesmo da mesa).
 // Canto superior direito da tela: a lista abre no centro, larga. Esc ou clique fora fecha.
-// Dock (opcional, nos ajustes): clicar no ícone abre a lista no centro.
+// Dock (opcional, nos ajustes): o app vira uma janela normal, que arrasta, redimensiona e lembra a posição.
 // A engrenagem no topo do painel abre os ajustes; a página conversa com o app pela ponte "ajustes".
 // Build e instalação: ./instalar.sh
 import Cocoa
@@ -25,6 +25,8 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
     var entrouNoCanto: Date?
     let popover = NSPopover()
     var web: WKWebView!
+    var janela: NSWindow!
+    var webJanela: WKWebView!
     var falhou = false
     let prefs = UserDefaults.standard
 
@@ -57,6 +59,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
         carregar()
 
         montarPainel()
+        montarJanela()
         montarMenuPrincipal()
         aplicarModo()
 
@@ -75,6 +78,39 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
         falhou = false
         web.load(URLRequest(url: URL(string: BASE + "/?widget")!))
         webCentro?.load(URLRequest(url: URL(string: BASE + "/?widget&largo&moldura")!))
+        webJanela?.load(URLRequest(url: URL(string: BASE + "/?app")!))
+    }
+
+    // ---- janela normal (modo Dock) ----
+    func montarJanela() {
+        janela = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 720),
+                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                          backing: .buffered, defer: false)
+        janela.title = "Tarefas"
+        janela.titleVisibility = .hidden
+        janela.titlebarAppearsTransparent = true
+        janela.isReleasedWhenClosed = false
+        janela.minSize = NSSize(width: 380, height: 420)
+        janela.tabbingMode = .disallowed
+        // mesma cor do fundo da página, pra barra de título sumir nela
+        janela.backgroundColor = NSColor(name: nil) { a in
+            a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(white: 0x0E / 255, alpha: 1) : NSColor(white: 0xEA / 255, alpha: 1)
+        }
+        webJanela = WKWebView(frame: .zero, configuration: config())
+        webJanela.setValue(false, forKey: "drawsBackground")
+        janela.contentView = webJanela
+        webJanela.load(URLRequest(url: URL(string: BASE + "/?app")!))
+        janela.center()
+        janela.setFrameAutosaveName("JanelaTarefas")
+    }
+
+    @objc func mostrarJanela() {
+        fecharCentro()
+        if popover.isShown { popover.performClose(nil) }
+        webJanela.evaluateJavaScript("puxar()")
+        NSApp.activate(ignoringOtherApps: true)
+        janela.makeKeyAndOrderFront(nil)
     }
 
     // ---- modo: barra de menu, Dock ou os dois ----
@@ -85,7 +121,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
 
     // Clique no ícone do Dock
     func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows v: Bool) -> Bool {
-        painel.isVisible ? fecharCentro() : abrirCentro(naTelaDoMouse: false)
+        mostrarJanela()
         return false
     }
 
@@ -99,6 +135,24 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
         m.addItem(.separator())
         m.addItem(withTitle: "Sair do Tarefas", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = m
+
+        let editar = NSMenu(title: "Editar")
+        editar.addItem(withTitle: "Desfazer", action: Selector(("undo:")), keyEquivalent: "z")
+        editar.addItem(withTitle: "Refazer", action: Selector(("redo:")), keyEquivalent: "Z")
+        editar.addItem(.separator())
+        editar.addItem(withTitle: "Recortar", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editar.addItem(withTitle: "Copiar", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editar.addItem(withTitle: "Colar", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editar.addItem(withTitle: "Selecionar tudo", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        let editarItem = NSMenuItem(); editarItem.submenu = editar; principal.addItem(editarItem)
+
+        let jan = NSMenu(title: "Janela")
+        jan.addItem(withTitle: "Mostrar a lista", action: #selector(mostrarJanela), keyEquivalent: "0").target = self
+        jan.addItem(withTitle: "Minimizar", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        jan.addItem(withTitle: "Fechar", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        let janItem = NSMenuItem(); janItem.submenu = jan; principal.addItem(janItem)
+        NSApp.windowsMenu = jan
+
         NSApp.mainMenu = principal
     }
 
@@ -149,7 +203,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
 
     func userContentController(_ u: WKUserContentController, didReceive m: WKScriptMessage) {
         if m.name == "ajustes", let corpo = m.body as? [String: Any] { return ajustes(corpo) }
-        guard let n = m.body as? NSNumber else { return }
+        guard let n = m.body as? NSNumber, m.webView !== webJanela else { return }
         let h = CGFloat(truncating: n)
         if m.webView === webCentro {
             alturaCentro = h
@@ -178,7 +232,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
                     prefs.set(v, forKey: "modo")
                     aplicarModo()
                     // saiu da barra de menu com o popover aberto: continua nos ajustes, agora no centro
-                    if v == "dock" && popover.isShown { popover.performClose(nil); abrirAjustes() }
+                    if v != "menu" { mostrarJanela() }
                 }
             case "canto": prefs.set(valor as? Bool ?? true, forKey: "canto")
             case "login":
@@ -202,7 +256,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
             "widget": ligado, "widgetDisponivel": disponivel,
         ]
         guard let d = try? JSONSerialization.data(withJSONObject: estado), let j = String(data: d, encoding: .utf8) else { return }
-        for w in [web, webCentro] { w?.evaluateJavaScript("window.receberAjustes && receberAjustes(\(j))") }
+        for w in [web, webCentro, webJanela] { w?.evaluateJavaScript("window.receberAjustes && receberAjustes(\(j))") }
     }
 
     // ---- widget da mesa, pelo AppleScript do Übersicht ----
@@ -249,6 +303,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
     }
 
     @objc func abrirAjustes() {
+        if modo != "menu" { mostrarJanela(); webJanela.evaluateJavaScript("mostrarAjustes()"); return }
         if !painel.isVisible { abrirCentro(naTelaDoMouse: false) }
         webCentro.evaluateJavaScript("mostrarAjustes()")
     }
@@ -270,6 +325,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, NSWindow
 
     func menu() {
         let m = NSMenu()
+        m.addItem(withTitle: "Abrir em janela", action: #selector(mostrarJanela), keyEquivalent: "").target = self
         m.addItem(withTitle: "Ajustes…", action: #selector(abrirAjustes), keyEquivalent: "").target = self
         m.addItem(withTitle: "Abrir no navegador", action: #selector(abrir), keyEquivalent: "").target = self
         m.addItem(withTitle: "Recarregar", action: #selector(recarregar), keyEquivalent: "").target = self

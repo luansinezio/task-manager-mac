@@ -5,6 +5,7 @@ Lista de tarefas pessoal pro macOS, que roda 100% local e aparece em três lugar
 - **No navegador**, em `http://localhost:8790`
 - **Na barra de menu**, com o número de tarefas abertas; clicou, abre a lista num painel
 - **No canto da tela**: encostou o mouse no canto superior direito, a lista abre no centro, larga e em duas colunas
+- **Numa janela própria** (opcional), com ícone no Dock: arrasta, redimensiona e lembra onde ficou
 - **Na mesa** (opcional), como widget fixo na área de trabalho
 
 Tudo lê o mesmo arquivo, então marcar num lugar atualiza os outros em segundos. Segue o tema do sistema (claro ou escuro) sozinho.
@@ -62,6 +63,7 @@ Na primeira vez a lista começa com tarefas de exemplo. Suas tarefas ficam em `d
 | Limpar o dia | Botão "Limpar feitas" tira tudo o que já foi marcado |
 | Canto da tela | Mouse no canto superior direito abre; Esc, clique fora ou o canto de novo fecha |
 | Barra de menu | Clique abre o painel; botão direito tem Ajustes, Abrir no navegador, Recarregar e Sair |
+| Janela | Nos ajustes, escolha Dock ou Os dois: clicar no ícone do Dock abre a lista numa janela normal (⌘W fecha, ⌘M minimiza) |
 | Ajustes | Engrenagem no topo do painel: onde o app aparece (barra de menu, Dock ou os dois), widget da mesa ligado ou não, atalho do canto, abrir ao ligar o Mac |
 | Tema | Segue o sistema. Na página dá pra forçar claro ou escuro no botão de tema |
 
@@ -102,7 +104,7 @@ Remove o serviço, o app e o widget. As tarefas em `dados/tarefas.json` ficam.
 ```
 servidor.py        API local (GET /api/tarefas, POST /api/op) e arquivos da página
 tm.py              núcleo: lê, altera e grava o JSON com trava e gravação atômica; também é a CLI
-public/index.html  a página (modos: normal, ?widget, ?widget&largo, &moldura, &tema=claro|escuro)
+public/index.html  a página (modos: normal, ?app, ?widget, ?widget&largo, &moldura, &tema=claro|escuro)
 barra-app/         app nativo em Swift (NSStatusItem + WKWebView), sem Xcode, compilado com swiftc; icone.swift gera o AppIcon.icns
 widget/            widget do Übersicht
 ```

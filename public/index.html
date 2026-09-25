@@ -10,7 +10,9 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230E0E0E'/%3E%3Cpath d='M9 16.5l4.5 4.5L23 11.5' fill='none' stroke='%23E8E8E8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <script>
   const q = new URLSearchParams(location.search);
-  if (!q.has('widget')) try { const t = localStorage.getItem('tm-tema'); if (t) document.documentElement.dataset.tema = t; } catch (e) {}
+  // ?app: janela do app Tarefas; segue o tema do sistema pra combinar com a barra de título
+  if (q.has('app')) document.documentElement.classList.add('app');
+  if (!q.has('widget') && !q.has('app')) try { const t = localStorage.getItem('tm-tema'); if (t) document.documentElement.dataset.tema = t; } catch (e) {}
   if (q.has('moldura')) document.documentElement.classList.add('moldura');
   if (q.has('widget')) {
     document.documentElement.classList.add('widget');
@@ -143,7 +145,7 @@ body.arrastando .lista{min-height:40px}
 @media (max-width:760px){
   .pagina{padding:28px 16px 64px}
   .grade{grid-template-columns:1fr}
-  :root:not(.widget) .alca,:root:not(.widget) .apagar{opacity:1}
+  :root:not(.widget):not(.app) .alca,:root:not(.widget):not(.app) .apagar{opacity:1}
   header{align-items:flex-start}
 }
 /* ---- modo widget (Übersicht): uma coluna, compacto, seção vazia some ---- */
@@ -155,7 +157,10 @@ body.arrastando .lista{min-height:40px}
 .widget header{flex-direction:column;align-items:flex-start;gap:6px;padding:0 6px 14px;margin-bottom:10px}
 .widget .eyebrow{margin-bottom:8px}
 .widget h1{font-size:24px}
-.widget #limpar,.widget #tema{display:none}
+.widget #limpar,.widget #tema,.app #tema{display:none}
+.app .pagina{padding:8px 28px 40px}
+.app h1{font-size:clamp(28px,4vw,40px)}
+@media (max-width:760px){.app .pagina{padding:8px 16px 32px}}
 .widget .contagem{margin:0}
 .widget .grade,.widget .coluna{display:flex;flex-direction:column;gap:0}
 .widget .secao{background:none;border:0;border-radius:0;padding:10px 0 6px;border-bottom:1px solid var(--border)}
