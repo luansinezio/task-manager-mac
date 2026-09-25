@@ -9,6 +9,13 @@ Usado pelo servidor e direto pelo terminal:
   python3 tm.py rm t04
   python3 tm.py move t04 amanha [posição]
   python3 tm.py limpar           (tira tudo o que está feito)
+
+Copiloto de IA (o mesmo que o MCP em mcp.py faz):
+  python3 tm.py dono t04 ia|voce
+  python3 tm.py pegar t04 claude ["o que vai fazer"]
+  python3 tm.py progresso t04 40 "lendo a conversa"
+  python3 tm.py concluir t04 "o que foi feito" [revisar]
+  python3 tm.py devolver t04 "o que falta pra IA seguir"
 """
 import fcntl
 import hashlib
@@ -90,6 +97,8 @@ def aplicar(op):
             item["feito"] = not item["feito"]
             if item["feito"]:
                 item["feito_em"] = agora
+                if item.get("ia", {}).get("estado") == "revisar":
+                    item["ia"]["estado"] = "concluida"
             else:
                 item.pop("feito_em", None)
         elif tipo == "edit":
@@ -107,6 +116,47 @@ def aplicar(op):
             destino = dados["secoes"][op["secao"]]["itens"]
             pos = op.get("pos")
             destino.insert(len(destino) if pos is None else min(int(pos), len(destino)), item)
+        # ---- copiloto de IA: item["dono"] = "ia" e item["ia"] = {agente, estado, progresso, nota} ----
+        elif tipo == "dono":
+            _, _, item = _achar(dados, op["id"])
+            if op["dono"] == "ia":
+                item["dono"] = "ia"
+                item.setdefault("ia", {"estado": "fila", "progresso": 0})
+            else:
+                item.pop("dono", None)
+                item.pop("ia", None)
+        elif tipo == "ia_pegar":
+            _, _, item = _achar(dados, op["id"])
+            item["dono"] = "ia"
+            item["feito"] = False
+            item["ia"] = {"agente": op.get("agente") or "ia", "estado": "fazendo", "progresso": 0,
+                          "nota": (op.get("nota") or "").strip(), "inicio": agora}
+        elif tipo == "ia_progresso":
+            _, _, item = _achar(dados, op["id"])
+            ia = item.setdefault("ia", {"agente": op.get("agente") or "ia"})
+            item["dono"] = "ia"
+            ia["estado"] = "fazendo"
+            ia["progresso"] = max(0, min(100, int(op["progresso"])))
+            if op.get("nota"):
+                ia["nota"] = op["nota"].strip()
+            if op.get("agente"):
+                ia["agente"] = op["agente"]
+        elif tipo == "ia_concluir":
+            _, _, item = _achar(dados, op["id"])
+            ia = item.setdefault("ia", {"agente": op.get("agente") or "ia"})
+            item["dono"] = "ia"
+            ia.update(progresso=100, nota=(op.get("resumo") or "").strip(), fim=agora)
+            if op.get("revisar"):
+                ia["estado"] = "revisar"           # fica aberta até você conferir e marcar
+            else:
+                ia["estado"] = "concluida"
+                item["feito"] = True
+                item["feito_em"] = agora
+        elif tipo == "ia_devolver":
+            _, _, item = _achar(dados, op["id"])
+            ia = item.setdefault("ia", {"agente": op.get("agente") or "ia"})
+            item["dono"] = "voce"
+            ia.update(estado="devolvida", nota=(op.get("falta") or "").strip(), fim=agora)
         elif tipo == "limpar":
             for sec in dados["secoes"].values():
                 sec["itens"] = [it for it in sec["itens"] if not it["feito"]]
@@ -124,7 +174,15 @@ def _lista():
             print(f"\n{sec['titulo'].upper()}  [{sid}]")
             for it in sec["itens"]:
                 marca = "-" if sec["tipo"] == "nota" else ("[x]" if it["feito"] else "[ ]")
-                print(f"  {marca} {it['id']}  {it['texto']}")
+                ia = it.get("ia")
+                extra = ""
+                if ia:
+                    extra = f"  ← {ia.get('agente', 'ia')}: {ia.get('estado')} {ia.get('progresso', 0)}%"
+                    if ia.get("nota"):
+                        extra += f" · {ia['nota']}"
+                elif it.get("dono") == "ia":
+                    extra = "  ← pra IA"
+                print(f"  {marca} {it['id']}  {it['texto']}{extra}")
 
 
 if __name__ == "__main__":
@@ -140,6 +198,11 @@ if __name__ == "__main__":
         "rm": lambda: {"op": "delete", "id": a[1]},
         "move": lambda: {"op": "move", "id": a[1], "secao": a[2], "pos": a[3] if len(a) > 3 else None},
         "limpar": lambda: {"op": "limpar"},
+        "dono": lambda: {"op": "dono", "id": a[1], "dono": a[2]},
+        "pegar": lambda: {"op": "ia_pegar", "id": a[1], "agente": a[2], "nota": a[3] if len(a) > 3 else ""},
+        "progresso": lambda: {"op": "ia_progresso", "id": a[1], "progresso": a[2], "nota": a[3] if len(a) > 3 else ""},
+        "concluir": lambda: {"op": "ia_concluir", "id": a[1], "resumo": a[2], "revisar": len(a) > 3 and a[3] == "revisar"},
+        "devolver": lambda: {"op": "ia_devolver", "id": a[1], "falta": a[2]},
     }
     if cmd not in ops:
         sys.exit(__doc__)

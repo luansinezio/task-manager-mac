@@ -47,6 +47,7 @@ O instalador:
 2. Compila o app **Tarefas** (barra de menu, canto da tela e, se quiser, Dock) em `~/Applications/Tarefas.app`. Na primeira vez ele se registra pra abrir no login.
 3. Desliga o Canto Ativo do macOS no canto superior direito, pra não abrir duas coisas ao mesmo tempo.
 4. Se o Übersicht estiver instalado, liga o widget da mesa.
+5. Conecta o copiloto de IA (MCP) no Claude Code, Claude Desktop, Codex e Gemini CLI, os que estiverem instalados.
 
 Na primeira vez que você ligar ou desligar o widget pelos ajustes, o macOS pergunta se o Tarefas pode controlar o Übersicht. É só permitir.
 
@@ -83,6 +84,41 @@ python3 tm.py limpar               # tira as feitas
 
 Seções: `rapidas`, `demoradas`, `particular`, `semana`, `amanha`, `anotacoes`. A tela pega a mudança em até 2 segundos.
 
+## Copiloto de IA
+
+A lista é compartilhada com a sua IA. Cada tarefa pode ser **sua** ou **da IA**, e a tela mostra ao vivo quem está fazendo o quê: o logo da IA (Claude, Codex, Gemini), uma barra de progresso e uma nota curta do passo atual.
+
+Como funciona:
+
+1. Você despeja as tarefas na conversa com a IA (ou só abre a conversa).
+2. A IA faz a triagem: o que ela resolve sozinha (escrever, pesquisar, rascunhar, codar, organizar) fica com ela; o que depende de você (ligar, assinar, pagar, decidir, fazer login) fica com você.
+3. Quando você autoriza, ela pega a tarefa, vai atualizando a barra e conclui. Tarefa que ela resolve de ponta a ponta sai marcada como feita.
+4. **A IA prepara, você dispara.** O que sai pra fora e não desfaz (email, mensagem, publicação, pagamento) fica em **Revisar** até você conferir e marcar.
+5. Se ela travar, devolve a tarefa pra você dizendo o que falta.
+
+Na tela, a faísca ao lado de cada tarefa passa ela pra IA ou pega de volta.
+
+### Conectar a IA
+
+O `./instalar.sh` já conecta o servidor MCP (`mcp.py`) no que encontrar: Claude Code, Claude Desktop, Codex e Gemini CLI. Pra rodar só essa parte: `./scripts/conectar-ia.sh` (e `--remover` pra desfazer). Em outra IA com MCP, aponte pra:
+
+```
+command: python3
+args: /caminho/task-manager-mac/mcp.py
+```
+
+Ferramentas: `listar_tarefas`, `adicionar_tarefa`, `definir_dono`, `pegar_tarefa`, `informar_progresso`, `concluir_tarefa`, `devolver_tarefa`, `marcar_feita`. As regras de triagem vão junto, nas instruções do servidor. O logo sai do nome que a IA informa ao conectar.
+
+Sem MCP, o mesmo pelo terminal:
+
+```bash
+python3 tm.py dono t04 ia
+python3 tm.py pegar t04 claude "lendo a conversa"
+python3 tm.py progresso t04 60 "rascunhando a resposta"
+python3 tm.py concluir t04 "Resposta pronta no rascunho" revisar
+python3 tm.py devolver t04 "seu login na Amazon"
+```
+
 ## Personalizar
 
 - **Seções e títulos:** edite `dados/tarefas.json` (chave `secoes` e a ordem em `colunas`).
@@ -106,6 +142,7 @@ Remove o serviço, o app e o widget. As tarefas em `dados/tarefas.json` ficam.
 ## Como é feito
 
 ```
+mcp.py             servidor MCP (stdio) pro copiloto de IA
 servidor.py        API local (GET /api/tarefas, POST /api/op) e arquivos da página
 tm.py              núcleo: lê, altera e grava o JSON com trava e gravação atômica; também é a CLI
 public/index.html  a página (modos: normal, ?app, ?widget, ?widget&largo, &moldura, &tema=claro|escuro)

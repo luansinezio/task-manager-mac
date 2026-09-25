@@ -6,17 +6,17 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 command -v python3 >/dev/null || { echo "Falta o python3. Rode: xcode-select --install"; exit 1; }
 command -v swiftc  >/dev/null || { echo "Falta o swiftc. Rode: xcode-select --install"; exit 1; }
 
-echo "1/3  Servidor local (http://localhost:8790)"
+echo "1/4  Servidor local (http://localhost:8790)"
 "$DIR/scripts/instalar.sh"
 
-echo "2/3  App Tarefas na barra de menu"
+echo "2/4  App Tarefas na barra de menu"
 "$DIR/barra-app/instalar.sh"
 # O canto superior direito passa a abrir a lista; desliga o Canto Ativo do macOS nesse canto pra não abrir os dois.
 defaults write com.apple.dock wvous-tr-corner -int 1
 defaults write com.apple.dock wvous-tr-modifier -int 0
 killall Dock
 
-echo "3/3  Widget da mesa"
+echo "3/4  Widget da mesa"
 if [ -d "/Applications/Übersicht.app" ]; then
   W="$HOME/Library/Application Support/Übersicht/widgets"
   mkdir -p "$W"
@@ -27,6 +27,9 @@ if [ -d "/Applications/Übersicht.app" ]; then
 else
   echo "     Übersicht não encontrado, widget pulado. Pra ter: brew install --cask ubersicht && ./instalar.sh"
 fi
+
+echo "4/4  Copiloto de IA (MCP nas IAs instaladas)"
+"$DIR/scripts/conectar-ia.sh"
 
 echo
 echo "Pronto. Abra http://localhost:8790 ou encoste o mouse no canto superior direito da tela."

@@ -3,6 +3,16 @@
 Versões seguem `MAIOR.MENOR.CORREÇÃO`. Enquanto estiver em 0.x, MENOR sobe a cada recurso novo e CORREÇÃO a cada ajuste.
 A primeira seção é a versão atual: é dela que o app lê o número e a lista de novidades.
 
+## 0.4.0 — 2026-09-25
+
+- Copiloto de IA: cada tarefa pode ser sua ou da IA
+- Tarefa da IA mostra o logo de quem está fazendo (Claude, Codex, Gemini) e uma barra de progresso ao vivo
+- Estados na tela: na fila, fazendo, revisar, feito pela IA, devolvida com o que falta
+- Botão de faísca em cada tarefa passa pra IA ou pega de volta
+- Servidor MCP: Claude Code, Claude Desktop, Codex e Gemini leem a lista, fazem a triagem, pegam tarefa, informam progresso e concluem
+- O instalador conecta o MCP sozinho nas IAs que encontrar
+- Regra da casa: a IA prepara, você dispara; o que sai pra fora fica em revisar até você marcar
+
 ## 0.3.0 — 2026-09-25
 
 - Janela de verdade no modo Dock: arrasta, redimensiona, minimiza e lembra onde ficou
